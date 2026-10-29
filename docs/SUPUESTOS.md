@@ -1,0 +1,17 @@
+# Supuestos (decisiones no bloqueantes; revisar con el propietario)
+- S1 Supabase como plataforma; desarrollo local con Supabase CLI.
+- S2 Cobro por períodos de 24 h desde la recogida, con gracia configurable (`companies.grace_minutes`, 59 por defecto). Redondeo a 2 decimales, half up. **Pendiente de confirmar: afecta dinero.**
+- S3 Sin margen entre alquileres por defecto (`turnaround_minutes = 0`). Intervalos semiabiertos [recogida, devolución): devolución 10:00 y recogida 10:00 no chocan.
+- S4 Solicitudes pendientes NO bloquean el vehículo. Solo `confirmed` e `in_progress` bloquean. `expires_at` marca caducidad (job de limpieza pendiente).
+- S5 Código y tablas en inglés; interfaz en español.
+- S6 Confirmar o rechazar una reserva exige `reservations:confirm` (solo admin por defecto). Marcar entrega/devolución y cancelar exige `reservations:write` (empleado). Ajustable en `role_permissions`.
+- S7 Hora de negocio: UTC-4 fijo (RD no usa horario de verano). Los formularios envían hora local de Santo Domingo.
+- S8 Las solicitudes pendientes se crean con `expires_at`, pero aún no existe el proceso que las vence automáticamente.
+- S9 Reembolsar un pago y aplicar una deducción al depósito exigen `payments:void` (solo administrador por defecto). Registrar pagos, cargos y recibir/devolver depósito exige `payments:write` (empleado). Anular exige motivo.
+- S10 Los registros financieros no se editan ni se borran: se anulan con motivo y quedan en auditoría. El neto recibido de una reserva y el depósito retenido nunca pueden ser negativos (lo impone la base de datos).
+- S11 Mantenimiento y averías se registran como gastos (categorías "Mantenimiento" y "Reparaciones") asociados al vehículo; los períodos de taller son bloqueos del calendario. No hay tabla `maintenance_records` aparte.
+- S12 Cada cifra de Reportes tiene su criterio en la propia página. "Ingresos registrados" no es dinero cobrado ni facturación fiscal.
+- S13 El contador ve pagos, gastos, reportes, reservas y vehículos, pero no clientes ni documentos.
+- S14 La web pública muestra la primera empresa (o `PUBLIC_COMPANY_ID`). Las solicitudes web nunca se confirman solas: crean una reserva PENDIENTE (con vigencia configurable) y un cliente (reutiliza uno con mismo teléfono y nombre).
+- S15 Anti-abuso: campo trampa, máximo 5 solicitudes por hora por IP (guardada solo como hash) y 3 por día por teléfono. No hay CAPTCHA todavía.
+- S16 El administrador siempre conserva todos los permisos; no puede quedar la empresa sin un administrador activo (lo impone la base de datos).

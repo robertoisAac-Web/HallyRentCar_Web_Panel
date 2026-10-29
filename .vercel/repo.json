@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_X5QCSytHvWvMcZCkTR9Jwc7CFFGh",
+      "name": "hally-rent-car-web-panel",
+      "directory": ".",
+      "orgId": "team_XuDjEXbo1WcQmO6WZRQ6s9Vr"
+    }
+  ]
+}
