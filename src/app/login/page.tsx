@@ -9,9 +9,10 @@ async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = await createClient();
   
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   
-  if (error) {
+  if (error || !data.session) {
+    console.error("Auth error:", error?.message);
     redirect("/login?error=1");
   }
 
