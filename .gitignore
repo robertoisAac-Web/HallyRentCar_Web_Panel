@@ -1,3 +1,5 @@
+# Esto es un comentario: ignorar dependencias de node
+
 node_modules/
 .next/
 .vercel/
