@@ -15,7 +15,9 @@ export async function getPublicCompanyStatus(): Promise<{ company: PublicCompany
   const sb = createAdminClient();
   const cols = "id,name,tagline,address,delivery_zones,terms_text,phone,whatsapp_number,turnaround_minutes,grace_minutes,public_enabled";
   const wanted = process.env.PUBLIC_COMPANY_ID;
-  const q = wanted ? sb.from("companies").select(cols).eq("id", wanted) : sb.from("companies").select(cols).order("created_at").limit(1);
+  const q = wanted
+    ? sb.from("companies").select(cols).eq("id", wanted)
+    : sb.from("companies").select(cols).eq("public_enabled", true).order("created_at", { ascending: false }).limit(1);
   const { data, error } = await q.maybeSingle();
   let reason: string | undefined;
   if (error) reason = `No se pudo leer la empresa: ${error.message}. Revisa que Docker y Supabase estén encendidos, que hayas corrido "npx supabase migration up" y las claves de .env.local.`;
