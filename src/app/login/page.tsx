@@ -1,7 +1,8 @@
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { InstallDesktopButton } from "@/components/pwa/DesktopAppManager";
 
 async function signIn(formData: FormData) {
   "use server";
@@ -10,10 +11,7 @@ async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.session) {
     console.error("Auth error:", error?.message);
@@ -23,24 +21,27 @@ async function signIn(formData: FormData) {
   redirect("/admin/dashboard");
 }
 
-async function sendPasswordReset(formData: FormData) {
+async function requestReset(formData: FormData) {
   "use server";
 
   const email = String(formData.get("email") ?? "").trim();
-
   if (!email) {
-    redirect("/login?reset=missing");
+    redirect("/login?mode=forgot&error=missing_email");
   }
 
-  const supabase = await createClient();
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "hallyrentcar.vercel.app";
+  const proto = host.includes("localhost") ? "http" : "https";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || `${proto}://${host}`;
 
+  const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/reset-password`,
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
   });
 
   if (error) {
-    console.error("Password reset error:", error.message);
-    redirect("/login?reset=error");
+    console.error("Reset password error:", error.message);
+    redirect("/login?mode=forgot&error=reset_failed");
   }
 
   redirect("/login?reset=sent");
@@ -49,134 +50,109 @@ async function sendPasswordReset(formData: FormData) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    error?: string;
-    reset?: string;
-  }>;
+  searchParams: Promise<{ error?: string; reset?: string; mode?: string }>;
 }) {
-  const { error, reset } = await searchParams;
+  const { error, reset, mode } = await searchParams;
+  const isForgotMode = mode === "forgot";
 
   return (
     <main className="grid min-h-screen md:grid-cols-2">
       <section className="flex flex-col justify-between bg-brand-dark p-8 text-white md:p-12">
-        <Link href="/" className="inline-block self-start">
-          <img
-            src="/logo.png"
-            alt="HallyRentCar"
-            className="h-9 w-auto"
-          />
-        </Link>
-
+        <div className="flex items-center justify-between">
+          <img src="/logo.png" alt="HallyRentCar" className="h-9 w-auto" />
+          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80">
+            Sistema de Gestión
+          </span>
+        </div>
         <div className="py-12">
           <h1 className="max-w-md text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
             Reservas, flota y cobros de tu rent a car en un solo lugar.
           </h1>
           <p className="mt-4 max-w-md text-white/70">
-            Consulta la disponibilidad de cada vehículo y registra los
-            alquileres sin errores de fechas.
+            Consulta la disponibilidad de cada vehículo y registra los alquileres en tiempo real desde tu aplicación de escritorio.
           </p>
         </div>
-
         <div className="flex items-center gap-2 text-xs text-white/60">
-          <span>
-            HallyRentCar &copy; {new Date().getFullYear()} · Panel de Gestión
-          </span>
+          <span>HallyRentCar &copy; {new Date().getFullYear()} · Panel Administrativo</span>
         </div>
       </section>
 
-      <section className="flex items-center justify-center bg-[#f8fafc] p-8">
+      <section className="flex items-center justify-center p-8 bg-[#f8fafc]">
         <div className="w-full max-w-sm">
           <div className="mb-6 flex justify-center md:hidden">
-            <img
-              src="/logo-dark.png"
-              alt="HallyRentCar"
-              className="h-8 w-auto"
-            />
+            <img src="/logo-dark.png" alt="HallyRentCar" className="h-8 w-auto" />
           </div>
 
-          <h2 className="mb-1 page-title tracking-tight">
-            Iniciar sesión
-          </h2>
-          <p className="mb-6 text-sm text-[var(--color-muted)]">
-            Entra con tu correo y contraseña.
-          </p>
+          {isForgotMode ? (
+            <>
+              <h2 className="mb-1 page-title tracking-tight">Recuperar contraseña</h2>
+              <p className="mb-6 text-sm text-[var(--color-muted)]">
+                Ingresa tu correo y te enviaremos un enlace seguro para restablecer tu acceso.
+              </p>
+              {error && (
+                <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  No se pudo enviar el correo. Verifica la dirección e inténtalo de nuevo.
+                </p>
+              )}
+              <form action={requestReset} className="space-y-4">
+                <label className="block text-sm font-medium text-slate-700">
+                  Correo electrónico
+                  <input name="email" type="email" required autoComplete="email" className="input mt-1" />
+                </label>
+                <button className="btn btn-primary w-full justify-center">Enviar enlace de recuperación</button>
+              </form>
+              <div className="mt-4 text-center">
+                <Link href="/login" className="text-xs font-medium text-slate-600 hover:text-slate-900">
+                  ← Volver a iniciar sesión
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="mb-1 page-title tracking-tight">Iniciar sesión</h2>
+              <p className="mb-6 text-sm text-[var(--color-muted)]">Entra con tu correo y contraseña al panel administrativo.</p>
 
-          {error && (
-            <p
-              role="alert"
-              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-            >
-              Correo o contraseña incorrectos.
-            </p>
+              {error === "1" && (
+                <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  Correo o contraseña incorrectos.
+                </p>
+              )}
+              {error === "recovery" && (
+                <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  El enlace de recuperación expiró o ya fue utilizado. Solicita uno nuevo.
+                </p>
+              )}
+              {reset === "sent" && (
+                <p role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  Te hemos enviado un enlace a tu correo para restablecer la contraseña.
+                </p>
+              )}
+              {reset === "updated" && (
+                <p role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  Contraseña actualizada correctamente. Ya puedes iniciar sesión.
+                </p>
+              )}
+
+              <form action={signIn} className="space-y-4">
+                <label className="block text-sm font-medium text-slate-700">
+                  Correo
+                  <input name="email" type="email" required autoComplete="email" className="input mt-1" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  <span className="flex items-center justify-between">
+                    <span>Contraseña</span>
+                    <Link href="/login?mode=forgot" className="text-xs font-normal text-slate-500 hover:text-slate-800">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </span>
+                  <input name="password" type="password" required autoComplete="current-password" className="input mt-1" />
+                </label>
+                <button className="btn btn-primary w-full justify-center">Entrar al panel</button>
+              </form>
+
+              <InstallDesktopButton variant="login" />
+            </>
           )}
-
-          {reset === "sent" && (
-            <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-              Si el correo está registrado, recibirás instrucciones para
-              restablecer tu contraseña.
-            </p>
-          )}
-
-          {reset === "error" && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              No se pudo enviar el correo. Inténtalo nuevamente.
-            </p>
-          )}
-
-          {reset === "missing" && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              Introduce tu correo electrónico.
-            </p>
-          )}
-
-          <form action={signIn} className="space-y-4">
-            <label className="block">
-              Correo
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                className="input"
-              />
-            </label>
-
-            <label className="block">
-              Contraseña
-              <input
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                className="input"
-              />
-            </label>
-
-            <button className="btn btn-primary w-full justify-center">
-              Entrar al panel
-            </button>
-          </form>
-
-          <form action={sendPasswordReset} className="mt-4">
-            <label className="mb-2 block text-sm">
-              Para recuperar tu contraseña, escribe tu correo aquí:
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="tu@correo.com"
-                className="input mt-2"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="w-full text-sm font-medium text-blue-700 hover:underline"
-            >
-              Enviarme un enlace para restablecerla
-            </button>
-          </form>
         </div>
       </section>
     </main>

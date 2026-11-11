@@ -1,0 +1,64 @@
+{
+  "id": "/admin/dashboard",
+  "name": "HallyRentCar · Panel Administrativo",
+  "short_name": "HallyRentCar",
+  "description": "Sistema de escritorio para gestión de reservas, flota de vehículos, clientes y cobros de HallyRentCar.",
+  "start_url": "/admin/dashboard?source=desktop",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#0a1926",
+  "theme_color": "#0a1926",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nueva Reserva",
+      "short_name": "Nueva Reserva",
+      "description": "Registrar un nuevo alquiler de vehículo",
+      "url": "/admin/reservas/nueva",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Calendario de Flota",
+      "short_name": "Calendario",
+      "description": "Ver disponibilidad por fechas",
+      "url": "/admin/calendario",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Vehículos",
+      "short_name": "Vehículos",
+      "description": "Administrar flota de vehículos",
+      "url": "/admin/vehiculos",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Reportes Financieros",
+      "short_name": "Reportes",
+      "description": "Consultar ingresos y gastos",
+      "url": "/admin/reportes",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
