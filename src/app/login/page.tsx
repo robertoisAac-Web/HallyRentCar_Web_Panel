@@ -11,10 +11,28 @@ async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  let data;
+  let error;
+  try {
+    const res = await supabase.auth.signInWithPassword({ email, password });
+    data = res.data;
+    error = res.error;
+  } catch (err) {
+    console.error("Connection error to Supabase:", err);
+    redirect("/login?error=db_paused");
+  }
 
-  if (error || !data.session) {
+  if (error || !data?.session) {
+    const msg = (error?.message ?? "").toLowerCase();
     console.error("Auth error:", error?.message);
+    if (
+      msg.includes("fetch failed") ||
+      msg.includes("enotfound") ||
+      msg.includes("network") ||
+      (error?.status && error.status >= 500)
+    ) {
+      redirect("/login?error=db_paused");
+    }
     redirect("/login?error=1");
   }
 
@@ -116,6 +134,14 @@ export default async function LoginPage({
                 <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                   Correo o contraseña incorrectos.
                 </p>
+              )}
+              {error === "db_paused" && (
+                <div role="alert" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 space-y-1">
+                  <p className="font-bold">Base de datos en pausa o reactivándose</p>
+                  <p>
+                    El servidor de Supabase se pausó por inactividad o está encendiendo. Espera 1–2 minutos mientras termina de restaurarse e intenta de nuevo.
+                  </p>
+                </div>
               )}
               {error === "recovery" && (
                 <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
