@@ -49,7 +49,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-5 py-14">
           <h2 className="mb-8 text-2xl font-semibold tracking-tight">{t(lang, "home.howTitle")}</h2>
           <ol className="grid gap-8 md:grid-cols-3">{steps.map(([title, desc], i) => (
-            <li key={title} className="flex gap-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0c1e2e] font-bold text-[#76e012] border border-[#76e012]/30 shadow-xs">{i + 1}</span>
+            <li key={title} className="flex gap-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0b2347] font-bold text-[#29abe2] border border-[#229ed9]/40 shadow-xs">{i + 1}</span>
               <div><h3 className="font-semibold">{t(lang, title)}</h3><p className="mt-1 text-sm text-[var(--color-muted)]">{t(lang, desc)}</p></div></li>))}</ol>
         </div>
       </section>

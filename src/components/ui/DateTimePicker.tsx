@@ -186,7 +186,7 @@ export function DateTimePicker({ name, label, mode = "datetime", lang = "es", va
                           }}
                           className={`rounded-lg py-1.5 px-2 text-xs font-semibold text-center border transition-all cursor-pointer ${
                             isSlot
-                              ? "bg-[#0c1e2e] text-white border-[#76e012] shadow-xs font-bold"
+                              ? "bg-[var(--color-brand)] text-white border-[var(--color-accent)] shadow-xs font-bold"
                               : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                           }`}
                         >

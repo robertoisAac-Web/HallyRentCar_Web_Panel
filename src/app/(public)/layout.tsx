@@ -27,17 +27,17 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <div className="public-root flex min-h-screen flex-col" data-theme={theme}>
       <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-surface/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-2.5">
           <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
             <img
-              src="/logo-dark.png"
-              alt={company?.name ?? "HallyRentCar"}
-              className="h-7 md:h-8 w-auto public-logo-dark"
+              src="/logo-public-dark.png"
+              alt={company?.name ?? "Hally Rent a Car"}
+              className="h-10 md:h-12 w-auto public-logo-dark"
             />
             <img
-              src="/logo.png"
-              alt={company?.name ?? "HallyRentCar"}
-              className="h-7 md:h-8 w-auto public-logo-light"
+              src="/logo-public-light.png"
+              alt={company?.name ?? "Hally Rent a Car"}
+              className="h-10 md:h-12 w-auto public-logo-light"
             />
           </Link>
           <nav className="flex items-center gap-2 text-sm sm:gap-4">
@@ -52,10 +52,10 @@ export default async function PublicLayout({ children }: { children: React.React
 
       <main className="flex-1">{children}</main>
 
-      <footer className="bg-brand-dark text-white border-t border-white/10">
+      <footer className="bg-[#07162e] text-white border-t border-white/10">
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 text-sm md:grid-cols-3">
           <div>
-            <img src="/logo.png" alt={company?.name ?? "HallyRentCar"} className="h-8 w-auto mb-3" />
+            <img src="/logo-public-light.png" alt={company?.name ?? "Hally Rent a Car"} className="h-11 w-auto mb-3" />
             <p className="text-white/70 text-xs leading-relaxed max-w-xs">{company?.tagline ?? "Alquiler de vehículos confiable y rápido en República Dominicana."}</p>
           </div>
           <div>
