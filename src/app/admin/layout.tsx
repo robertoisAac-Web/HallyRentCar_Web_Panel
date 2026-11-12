@@ -9,6 +9,7 @@ const NAV_PERMISSION: Record<string, string> = {
   "/admin/dashboard": "reservations:read",
   "/admin/reservas": "reservations:read",
   "/admin/calendario": "reservations:read",
+  "/admin/facturacion": "payments:read",
   "/admin/vehiculos": "vehicles:read",
   "/admin/clientes": "customers:read",
   "/admin/gastos": "expenses:read",

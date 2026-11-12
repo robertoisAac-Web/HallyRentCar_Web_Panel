@@ -21,6 +21,8 @@ const MODULE_TITLES: Record<string, string> = {
   "/admin/calendario": "Calendario de Flota",
   "/admin/reservas": "Gestión de Reservas",
   "/admin/reservas/nueva": "Nueva Reserva",
+  "/admin/facturacion": "Facturación y Comprobantes",
+  "/admin/facturacion/nueva": "Nueva Factura",
   "/admin/vehiculos": "Flota de Vehículos",
   "/admin/vehiculos/nuevo": "Nuevo Vehículo",
   "/admin/clientes": "Directorio de Clientes",

@@ -32,6 +32,11 @@ const SECTIONS: { category: string; items: NavItem[] }[] = [
         label: "Reservas",
         icon: icon(<><path d="M9 4h6l1 2h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3l1-2Z" /><path d="m9 14 2 2 4-4" /></>),
       },
+      {
+        href: "/admin/facturacion",
+        label: "Facturación",
+        icon: icon(<><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2 2-1.3V8z" /><path d="M14 2v6h6" /><path d="M8 13h8" /><path d="M8 17h5" /></>),
+      },
     ],
   },
   {

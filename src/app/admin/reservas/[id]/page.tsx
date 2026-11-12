@@ -10,12 +10,17 @@ import { Badge, ErrorBox, OkBox, reservationTone } from "@/components/admin/ui";
 import { transitionAction } from "../actions";
 import { FinanceSections } from "@/components/admin/FinanceSections";
 import { ChecklistSection } from "@/components/admin/ChecklistSection";
+import { getInvoiceByReservation } from "@/server/services/invoices";
+import { generateFromReservationAction } from "@/app/admin/facturacion/actions";
 
 export default async function ReservationPage({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string }> }) {
   const ctx = await requirePermission("reservations:read");
   const { id } = await params; const { error, ok } = await searchParams;
-  const r = await getReservation(id);
+  const [r, existingInvoice] = await Promise.all([
+    getReservation(id),
+    ctx.permissions.has("payments:read") ? getInvoiceByReservation(id) : Promise.resolve(null),
+  ]);
   if (!r) notFound();
   const money = (v: string) => formatMoney(toCents(v), r.currency);
   const actions = allowedNext(r.status).filter((to) => to !== "in_progress" && to !== "completed" && ctx.permissions.has(permissionForTransition(to)));
@@ -56,6 +61,34 @@ export default async function ReservationPage({ params, searchParams }: {
           </div>
         </section>)}
       <ChecklistSection reservationId={id} status={r.status} canWrite={ctx.permissions.has("checklists:write")} />
+      {ctx.permissions.has("payments:read") && (
+        <section className="panel flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2>Facturación</h2>
+            <p className="text-xs text-slate-500">
+              {existingInvoice
+                ? `Factura emitida: ${existingInvoice.code}`
+                : "Genera la factura automática de esta reserva con su desglose de días, cargos, pagos y PDF."}
+            </p>
+          </div>
+          {existingInvoice ? (
+            <div className="flex items-center gap-2">
+              <Link href={`/admin/facturacion/${existingInvoice.id}`} className="btn btn-secondary btn-sm">
+                Ver Factura {existingInvoice.code}
+              </Link>
+              <Link href={`/admin/facturacion/${existingInvoice.id}/pdf`} className="btn btn-primary btn-sm">
+                Factura PDF
+              </Link>
+            </div>
+          ) : (
+            ctx.permissions.has("payments:write") && (
+              <form action={generateFromReservationAction.bind(null, id)}>
+                <button className="btn btn-primary btn-sm">Generar factura de esta reserva</button>
+              </form>
+            )
+          )}
+        </section>
+      )}
       {ctx.permissions.has("payments:read") && (
         <FinanceSections reservationId={id} total={r.total_amount} depositRequired={r.deposit_required} currency={r.currency}
           canWrite={ctx.permissions.has("payments:write")} canVoid={ctx.permissions.has("payments:void")} />)}

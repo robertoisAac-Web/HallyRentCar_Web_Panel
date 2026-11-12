@@ -279,3 +279,27 @@
 .public-root[data-theme="dark"] .dtp-day.is-sel { background: #143563; color: #ffffff; border-color: #29abe2; }
 .public-root[data-theme="dark"] .dtp-day.is-today { color: #29abe2; }
 .public-root[data-theme="dark"] .dtp-trigger { border-color: #193558; color: var(--color-ink); }
+
+/* ---------- Impresión / Generación de PDF para Facturas y Recibos ---------- */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  body,
+  main {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-sheet {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0.25in !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
