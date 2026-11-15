@@ -1,8 +1,20 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FISCAL_TYPE_LABEL, type FiscalType } from "@/server/services/invoices";
+import type { FiscalType } from "@/server/services/invoices";
 import { METHOD_LABEL } from "@/lib/validators/finance";
+
+const FISCAL_TYPE_LABEL: Record<FiscalType, string> = {
+  none: "Factura Interna (Sin NCF / Control Interno)",
+  B01: "B01 · Crédito Fiscal (NCF Tradicional)",
+  B02: "B02 · Consumo Final (NCF Tradicional)",
+  B14: "B14 · Regímenes Especiales (NCF)",
+  B15: "B15 · Gubernamental (NCF)",
+  E31: "E31 · Crédito Fiscal Electrónico (e-CF)",
+  E32: "E32 · Consumo Electrónico (e-CF)",
+  E44: "E44 · Regímenes Especiales Electrónico (e-CF)",
+  E45: "E45 · Gubernamental Electrónico (e-CF)",
+};
 
 export interface CustomerOption {
   id: string;
