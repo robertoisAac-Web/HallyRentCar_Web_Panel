@@ -8,6 +8,7 @@ import { fromCents, toCents } from "@/lib/money";
 import { parseBusinessLocal } from "@/lib/dates";
 import { computeFreeVehicles, type VehicleLite } from "@/server/availability-core";
 import { canTransition, permissionForTransition, type ReservationStatus } from "@/lib/reservation-rules";
+import { createInvoiceFromReservation } from "./invoices";
 
 export interface CompanySettings { grace_minutes: number; turnaround_minutes: number; pending_expiry_hours: number }
 export interface ReservationRow {
@@ -81,12 +82,19 @@ export async function createReservation(input: ReservationInput): Promise<{ id: 
     internal_notes: input.internal_notes ?? null, created_by: ctx.userId,
   }).select("id").single();
   if (error) mapError(error);
-  return { id: data!.id };
+  const newResId = data!.id as string;
+  if (input.initial_status === "confirmed" && ctx.permissions.has("payments:write")) {
+    try {
+      await createInvoiceFromReservation(newResId);
+    } catch (invErr) {
+      console.error("Auto-invoice on reservation creation warning:", invErr);
+    }
+  }
+  return { id: newResId };
 }
 
 export async function transitionReservation(id: string, to: ReservationStatus): Promise<void> {
   const ctx = await requirePermission(permissionForTransition(to));
-  void ctx;
   const sb = await createClient();
   const { data: current, error } = await sb.from("reservations").select("id,status").eq("id", id).maybeSingle();
   if (error) mapError(error);
@@ -97,6 +105,15 @@ export async function transitionReservation(id: string, to: ReservationStatus): 
     .eq("id", id).eq("status", from).select("id");
   if (uErr) mapError(uErr);
   if (!updated || updated.length === 0) throw new ValidationError("La reserva cambió mientras la editabas; recarga la página");
+
+  // Garantizar que todo contrato confirmado, en curso o completado tenga su factura financiera asociada
+  if ((to === "confirmed" || to === "in_progress" || to === "completed") && ctx.permissions.has("payments:write")) {
+    try {
+      await createInvoiceFromReservation(id);
+    } catch (invErr) {
+      console.error("Auto-invoice on reservation transition warning:", invErr);
+    }
+  }
 }
 
 export async function listReservations(status?: string): Promise<(ReservationRow & { customer_name: string; vehicle_label: string })[]> {

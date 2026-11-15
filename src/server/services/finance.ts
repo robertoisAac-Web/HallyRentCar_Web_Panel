@@ -15,7 +15,24 @@ function mapError(e: { code?: string; message: string }): never {
   throw new Error("No se pudo completar la operación");
 }
 
-export interface PaymentRow { id: string; kind: "advance" | "payment" | "refund"; method: string; amount: string; currency: string; reference: string | null; note: string | null; paid_at: string; voided_at: string | null; void_reason: string | null }
+export interface PaymentRow {
+  id: string;
+  receipt_number: string | null;
+  invoice_id: string | null;
+  kind: "advance" | "payment" | "refund";
+  method: string;
+  amount: string;
+  currency: string;
+  bank_name: string | null;
+  cash_shift_id: string | null;
+  payment_group_id: string | null;
+  reconciled_at: string | null;
+  reference: string | null;
+  note: string | null;
+  paid_at: string;
+  voided_at: string | null;
+  void_reason: string | null;
+}
 export interface ChargeRow { id: string; description: string; amount: string; currency: string; created_at: string; voided_at: string | null; void_reason: string | null }
 export interface DepositRow { id: string; kind: "received" | "returned" | "applied"; method: string | null; amount: string; currency: string; reference: string | null; note: string | null; occurred_at: string; voided_at: string | null; void_reason: string | null }
 
@@ -23,7 +40,7 @@ export async function getReservationFinance(reservationId: string, totalAmount: 
   await requirePermission("payments:read");
   const sb = await createClient();
   const [p, c, d] = await Promise.all([
-    sb.from("payments").select("id,kind,method,amount,currency,reference,note,paid_at,voided_at,void_reason").eq("reservation_id", reservationId).order("paid_at"),
+    sb.from("payments").select("id,receipt_number,invoice_id,kind,method,amount,currency,bank_name,cash_shift_id,payment_group_id,reconciled_at,reference,note,paid_at,voided_at,void_reason").eq("reservation_id", reservationId).order("paid_at"),
     sb.from("reservation_charges").select("id,description,amount,currency,created_at,voided_at,void_reason").eq("reservation_id", reservationId).order("created_at"),
     sb.from("deposit_movements").select("id,kind,method,amount,currency,reference,note,occurred_at,voided_at,void_reason").eq("reservation_id", reservationId).order("occurred_at"),
   ]);

@@ -62,6 +62,11 @@ export interface InvoicePaymentRow {
   paid_at: string;
   voided_at: string | null;
   void_reason: string | null;
+  bank_account_id?: string | null;
+  bank_name?: string | null;
+  cash_shift_id?: string | null;
+  payment_group_id?: string | null;
+  reconciled_at?: string | null;
 }
 
 export interface InvoiceRow {

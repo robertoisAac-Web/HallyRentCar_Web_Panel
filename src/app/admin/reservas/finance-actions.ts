@@ -4,15 +4,32 @@ import { revalidatePath } from "next/cache";
 import { errorMessage } from "@/lib/action-error";
 import { parsePaymentForm, parseChargeForm, parseDepositForm, parseVoidForm, parseChecklistForm } from "@/lib/validators/finance";
 import { createPayment, createCharge, createDepositMovement, voidRecord, type VoidTarget } from "@/server/services/finance";
+import { recordMixedPayments, type MixedPaymentSplit } from "@/server/services/cash-and-banks";
 import { performHandover } from "@/server/services/handover";
 
 async function run(id: string, fn: () => Promise<void>, back = `/admin/reservas/${id}`) {
   try { await fn(); }
   catch (e) { redirect(`${back}?error=${encodeURIComponent(errorMessage(e))}`); }
-  revalidatePath("/admin/reservas"); revalidatePath(`/admin/reservas/${id}`); revalidatePath("/admin/dashboard"); revalidatePath("/admin/calendario");
+  revalidatePath("/admin/reservas");
+  revalidatePath(`/admin/reservas/${id}`);
+  revalidatePath("/admin/facturacion");
+  revalidatePath("/admin/caja");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/calendario");
   redirect(`/admin/reservas/${id}?ok=1`);
 }
-export async function createPaymentAction(id: string, fd: FormData) { await run(id, () => createPayment(id, parsePaymentForm(fd))); }
+
+export async function createPaymentAction(id: string, fd: FormData) {
+  const splitsJson = fd.get("splits_json");
+  if (splitsJson) {
+    const kind = (String(fd.get("kind") ?? "payment") || "payment") as "advance" | "payment" | "refund";
+    const splits = JSON.parse(String(splitsJson)) as MixedPaymentSplit[];
+    await run(id, () => recordMixedPayments({ reservationId: id, kind, splits }));
+    return;
+  }
+  await run(id, () => createPayment(id, parsePaymentForm(fd)));
+}
+
 export async function createChargeAction(id: string, fd: FormData) { await run(id, () => { const c = parseChargeForm(fd); return createCharge(id, c.description, c.amount); }); }
 export async function createDepositAction(id: string, fd: FormData) { await run(id, () => createDepositMovement(id, parseDepositForm(fd))); }
 export async function voidAction(id: string, table: VoidTarget, recordId: string, fd: FormData) { await run(id, () => voidRecord(table, recordId, parseVoidForm(fd))); }

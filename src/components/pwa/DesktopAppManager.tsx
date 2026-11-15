@@ -23,6 +23,7 @@ const MODULE_TITLES: Record<string, string> = {
   "/admin/reservas/nueva": "Nueva Reserva",
   "/admin/facturacion": "Facturación y Comprobantes",
   "/admin/facturacion/nueva": "Nueva Factura",
+  "/admin/caja": "Control de Caja y Bancos",
   "/admin/vehiculos": "Flota de Vehículos",
   "/admin/vehiculos/nuevo": "Nuevo Vehículo",
   "/admin/clientes": "Directorio de Clientes",

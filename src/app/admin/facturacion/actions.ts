@@ -11,6 +11,8 @@ import {
   type FiscalType,
 } from "@/server/services/invoices";
 import { voidRecord } from "@/server/services/finance";
+import { recordMixedPayments, type MixedPaymentSplit } from "@/server/services/cash-and-banks";
+import { generateAndSaveEcfXml, type EcfDocType, type DgiiEnvironment } from "@/server/services/dgii-ecf";
 
 export async function generateFromReservationAction(reservationId: string, fd?: FormData) {
   let invoiceId = "";
@@ -93,19 +95,49 @@ export async function createManualInvoiceAction(fd: FormData) {
 export async function recordInvoicePaymentAction(invoiceId: string, fd: FormData) {
   try {
     const kind = (String(fd.get("kind") ?? "payment") || "payment") as "advance" | "payment" | "refund";
-    const method = (String(fd.get("method") ?? "cash") || "cash") as "cash" | "transfer" | "card" | "other";
-    const amount = String(fd.get("amount") ?? "").trim();
-    const reference = String(fd.get("reference") ?? "").trim();
-    const note = String(fd.get("note") ?? "").trim();
+    const splitsJson = String(fd.get("splits_json") ?? "").trim();
 
-    await recordInvoicePayment(invoiceId, { kind, method, amount, reference, note });
+    if (splitsJson) {
+      const splits = JSON.parse(splitsJson) as MixedPaymentSplit[];
+      await recordMixedPayments({ invoiceId, kind, splits });
+    } else {
+      const method = (String(fd.get("method") ?? "cash") || "cash") as "cash" | "transfer" | "card" | "other";
+      const amount = String(fd.get("amount") ?? "").trim();
+      const reference = String(fd.get("reference") ?? "").trim();
+      const note = String(fd.get("note") ?? "").trim();
+
+      await recordInvoicePayment(invoiceId, { kind, method, amount, reference, note });
+    }
   } catch (e) {
     redirect(`/admin/facturacion/${invoiceId}?error=${encodeURIComponent(errorMessage(e))}`);
   }
 
   revalidatePath("/admin/facturacion");
   revalidatePath(`/admin/facturacion/${invoiceId}`);
+  revalidatePath("/admin/caja");
   revalidatePath("/admin/reportes");
+  redirect(`/admin/facturacion/${invoiceId}?ok=1`);
+}
+
+export async function generateEcfXmlAction(invoiceId: string, fd: FormData) {
+  try {
+    const ecfTipoRaw = String(fd.get("ecf_tipo") ?? "E32").trim();
+    const ecfType: EcfDocType =
+      ecfTipoRaw === "E31" || ecfTipoRaw === "E44" || ecfTipoRaw === "E45" ? ecfTipoRaw : "E32";
+    const environmentRaw = String(fd.get("environment") ?? "TesteCF").trim();
+    const environment: DgiiEnvironment =
+      environmentRaw === "CerteCF" || environmentRaw === "eCF" ? environmentRaw : "TesteCF";
+
+    await generateAndSaveEcfXml(invoiceId, {
+      ecfType,
+      environment,
+    });
+  } catch (e) {
+    redirect(`/admin/facturacion/${invoiceId}?error=${encodeURIComponent(errorMessage(e))}`);
+  }
+
+  revalidatePath(`/admin/facturacion/${invoiceId}`);
+  revalidatePath("/admin/facturacion");
   redirect(`/admin/facturacion/${invoiceId}?ok=1`);
 }
 

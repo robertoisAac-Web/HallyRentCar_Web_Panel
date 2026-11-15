@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { getReservationFinance } from "@/server/services/finance";
+import { listBankAccounts, getActiveShiftForCurrentUser } from "@/server/services/cash-and-banks";
 import { formatBusinessDateTime } from "@/lib/dates";
 import { formatMoney, toCents } from "@/lib/money";
 import { DEPOSIT_STATUS_LABEL } from "@/lib/finance";
 import { METHOD_LABEL } from "@/lib/validators/finance";
 import { Badge } from "./ui";
+import { MixedPaymentForm } from "./MixedPaymentForm";
 import { createPaymentAction, createChargeAction, createDepositAction, voidAction } from "@/app/admin/reservas/finance-actions";
 
 const KIND: Record<string, string> = { advance: "Anticipo", payment: "Pago", refund: "Reembolso", received: "Depósito recibido", returned: "Depósito devuelto", applied: "Deducción aplicada" };
@@ -12,7 +15,7 @@ const methodLabel = (m: string | null) => (m ? METHOD_LABEL[m as keyof typeof ME
 function VoidForm({ action }: { action: (fd: FormData) => void | Promise<void> }) {
   return (
     <details>
-      <summary className="cursor-pointer text-xs underline">Anular…</summary>
+      <summary className="cursor-pointer text-xs underline text-red-600">Anular…</summary>
       <form action={action} className="mt-2 flex gap-2">
         <input name="reason" required minLength={3} placeholder="Motivo" className="input" />
         <button className="btn btn-danger btn-sm">Confirmar</button>
@@ -24,29 +27,61 @@ function VoidForm({ action }: { action: (fd: FormData) => void | Promise<void> }
 export async function FinanceSections({ reservationId, total, depositRequired, currency, canWrite, canVoid }: {
   reservationId: string; total: string; depositRequired: string; currency: "DOP" | "USD"; canWrite: boolean; canVoid: boolean;
 }) {
-  const f = await getReservationFinance(reservationId, total, depositRequired);
+  const [f, bankAccounts, activeShift] = await Promise.all([
+    getReservationFinance(reservationId, total, depositRequired),
+    listBankAccounts(true),
+    getActiveShiftForCurrentUser(),
+  ]);
   const m = (c: number) => formatMoney(c, currency);
   const dm = (a: string) => formatMoney(toCents(a), currency);
   const b = f.balance, d = f.deposit;
   return (
     <>
       <section className="panel space-y-4">
-        <h2>Pagos</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2>Cobros del Contrato (Pagos Simples y Mixtos)</h2>
+            <p className="text-xs text-slate-500">
+              Cada cobro genera su recibo numerado, vincula la factura del contrato y registra el efectivo en caja o el banco receptor.
+            </p>
+          </div>
+        </div>
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-          <div><dt className="text-[var(--color-muted)]">A pagar</dt><dd className="font-semibold">{m(b.due)}</dd></div>
-          <div><dt className="text-[var(--color-muted)]">Cobrado (neto)</dt><dd className="font-semibold">{m(b.netReceived)}</dd></div>
+          <div><dt className="text-[var(--color-muted)]">Total a pagar</dt><dd className="font-semibold">{m(b.due)}</dd></div>
+          <div><dt className="text-[var(--color-muted)]">Cobrado (neto)</dt><dd className="font-semibold text-emerald-700">{m(b.netReceived)}</dd></div>
           <div><dt className="text-[var(--color-muted)]">{b.balance < 0 ? "Saldo a favor del cliente" : "Saldo pendiente"}</dt><dd className="font-semibold">{m(Math.abs(b.balance))}</dd></div>
           <div><dt className="text-[var(--color-muted)]">Cargos adicionales</dt><dd className="font-semibold">{m(b.chargesTotal)}</dd></div>
         </dl>
-        {f.payments.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Todavía no hay pagos registrados.</p> : (
+        {f.payments.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Todavía no hay pagos registrados en este contrato.</p> : (
           <div className="table-wrap"><table className="table">
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Método</th><th>Referencia</th><th>Importe</th><th></th></tr></thead>
+            <thead><tr><th>Recibo</th><th>Fecha</th><th>Tipo</th><th>Método / Banco / Caja</th><th>Referencia</th><th>Importe</th><th>Acciones</th></tr></thead>
             <tbody>{f.payments.map((p) => (
               <tr key={p.id} className={p.voided_at ? "opacity-50" : ""}>
-                <td>{formatBusinessDateTime(p.paid_at)}</td><td>{KIND[p.kind]}{p.voided_at && <> <Badge tone="red">Anulado</Badge></>}</td>
-                <td>{methodLabel(p.method)}</td><td>{p.reference ?? "—"}</td>
-                <td>{p.kind === "refund" ? "-" : ""}{dm(p.amount)}</td>
-                <td>{canVoid && !p.voided_at && <VoidForm action={voidAction.bind(null, reservationId, "payments", p.id)} />}{p.void_reason && <span className="text-xs">{p.void_reason}</span>}</td>
+                <td className="font-mono text-xs font-semibold">{p.receipt_number ?? "REC"}</td>
+                <td>{formatBusinessDateTime(p.paid_at)}</td>
+                <td>
+                  {KIND[p.kind]}
+                  {p.payment_group_id && <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">Mixto</span>}
+                  {p.voided_at && <> <Badge tone="red">Anulado</Badge></>}
+                </td>
+                <td>
+                  <span className="font-medium">{methodLabel(p.method)}</span>
+                  {p.bank_name && <span className="block text-xs text-slate-500">Banco: {p.bank_name}</span>}
+                  {p.method === "cash" && p.cash_shift_id && <span className="block text-[11px] text-emerald-700">Asignado a Caja</span>}
+                </td>
+                <td className="font-mono text-xs">{p.reference ?? "—"}</td>
+                <td className="font-semibold">{p.kind === "refund" ? "-" : ""}{dm(p.amount)}</td>
+                <td>
+                  <div className="flex items-center gap-2">
+                    {!p.voided_at && p.invoice_id && (
+                      <Link href={`/admin/facturacion/${p.invoice_id}/recibo/${p.id}`} className="btn btn-secondary btn-sm">
+                        Recibo PDF
+                      </Link>
+                    )}
+                    {canVoid && !p.voided_at && <VoidForm action={voidAction.bind(null, reservationId, "payments", p.id)} />}
+                    {p.void_reason && <span className="text-xs">{p.void_reason}</span>}
+                  </div>
+                </td>
               </tr>))}</tbody></table></div>)}
         {f.charges.length > 0 && (
           <ul className="space-y-1 text-sm">{f.charges.map((c) => (
@@ -55,22 +90,23 @@ export async function FinanceSections({ reservationId, total, depositRequired, c
               {canVoid && !c.voided_at && <VoidForm action={voidAction.bind(null, reservationId, "reservation_charges", c.id)} />}
             </li>))}</ul>)}
         {canWrite && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <form action={createPaymentAction.bind(null, reservationId)} className="space-y-3 rounded-lg border border-[var(--color-line)] p-3">
-              <p className="text-sm font-semibold">Registrar pago</p>
-              <div className="grid grid-cols-2 gap-3">
-                <label>Tipo<select name="kind" className="input"><option value="advance">Anticipo</option><option value="payment">Pago</option>{canVoid && <option value="refund">Reembolso</option>}</select></label>
-                <label>Método<select name="method" className="input">{Object.entries(METHOD_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-                <label>Importe *<input name="amount" required inputMode="decimal" className="input" /></label>
-                <label>Referencia<input name="reference" placeholder="Obligatoria si no es efectivo" className="input" /></label>
+          <div className="space-y-4">
+            <MixedPaymentForm
+              action={createPaymentAction.bind(null, reservationId)}
+              currency={currency}
+              balanceCents={Math.max(0, b.balance)}
+              canVoid={canVoid}
+              bankAccounts={bankAccounts}
+              activeShiftCode={activeShift?.shift.code ?? null}
+            />
+
+            <form action={createChargeAction.bind(null, reservationId)} className="space-y-3 rounded-xl border border-[var(--color-line)] p-4">
+              <p className="text-sm font-semibold">Agregar cargo adicional al contrato</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block sm:col-span-2">Descripción *<input name="description" required placeholder="Ej: día extra, entrega aeropuerto, limpieza" className="input" /></label>
+                <label className="block">Importe ({currency}) *<input name="amount" required inputMode="decimal" className="input" /></label>
               </div>
-              <button className="btn btn-primary">Registrar pago</button>
-            </form>
-            <form action={createChargeAction.bind(null, reservationId)} className="space-y-3 rounded-lg border border-[var(--color-line)] p-3">
-              <p className="text-sm font-semibold">Agregar cargo adicional</p>
-              <label className="block">Descripción *<input name="description" required placeholder="Ej: día extra, limpieza" className="input" /></label>
-              <label className="block">Importe *<input name="amount" required inputMode="decimal" className="input" /></label>
-              <button className="btn btn-secondary">Agregar cargo</button>
+              <button className="btn btn-secondary btn-sm">Agregar cargo</button>
             </form>
           </div>)}
       </section>

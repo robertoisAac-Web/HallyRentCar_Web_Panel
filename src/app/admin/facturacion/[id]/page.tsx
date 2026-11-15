@@ -7,13 +7,23 @@ import {
   INVOICE_STATUS_TONE,
   FISCAL_TYPE_LABEL,
 } from "@/server/services/invoices";
-import { formatMoney, fromCents, toCents } from "@/lib/money";
+import {
+  listBankAccounts,
+  getActiveShiftForCurrentUser,
+} from "@/server/services/cash-and-banks";
+import {
+  listEcfSubmissionsForInvoice,
+  DGII_WS_ENDPOINTS,
+} from "@/server/services/dgii-ecf";
+import { formatMoney, toCents } from "@/lib/money";
 import { formatBusinessDateTime } from "@/lib/dates";
 import { METHOD_LABEL } from "@/lib/validators/finance";
 import { whatsappLink } from "@/lib/whatsapp";
 import { Badge, ErrorBox, OkBox } from "@/components/admin/ui";
+import { MixedPaymentForm } from "@/components/admin/MixedPaymentForm";
 import {
   recordInvoicePaymentAction,
+  generateEcfXmlAction,
   voidInvoiceAction,
   voidInvoicePaymentAction,
 } from "../actions";
@@ -38,10 +48,15 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
   const { error, ok } = await searchParams;
 
-  const detail = await getInvoiceDetail(id);
+  const [detail, bankAccounts, activeShift, ecfSubmissions] = await Promise.all([
+    getInvoiceDetail(id),
+    listBankAccounts(true),
+    getActiveShiftForCurrentUser(),
+    listEcfSubmissionsForInvoice(id),
+  ]);
   if (!detail) notFound();
 
-  const { invoice, items, customer, vehicle, reservation, payments, totals } = detail;
+  const { invoice, items, customer, vehicle, reservation, payments, totals, company } = detail;
   const m = (cents: number) => formatMoney(cents, invoice.currency);
   const customerName = invoice.customer_tax_name || customer?.full_name || "Cliente";
   const customerDoc = invoice.customer_tax_id || customer?.id_number || null;
@@ -232,11 +247,14 @@ export default async function InvoiceDetailPage({
       <section className="panel space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2>Pagos y Recibos de Ingreso</h2>
+            <h2>Pagos, Cobros Mixtos y Recibos de Ingreso</h2>
             <p className="text-xs text-slate-500">
-              Cada pago (completo o parcial) genera automáticamente un Recibo de Pago numerado en PDF.
+              Soporta pagos individuales o mixtos (Efectivo en Caja + Transferencia Bancaria) y genera recibos numerados en PDF.
             </p>
           </div>
+          <Link href="/admin/caja" className="text-xs font-semibold text-emerald-700 hover:underline">
+            Ir a Control de Caja y Conciliación →
+          </Link>
         </div>
 
         {payments.length === 0 ? (
@@ -249,7 +267,7 @@ export default async function InvoiceDetailPage({
                   <th>Recibo #</th>
                   <th>Fecha</th>
                   <th>Tipo</th>
-                  <th>Método / Ref.</th>
+                  <th>Método / Banco / Ref.</th>
                   <th>Importe</th>
                   <th>Recibo PDF</th>
                 </tr>
@@ -259,6 +277,11 @@ export default async function InvoiceDetailPage({
                   <tr key={p.id} className={p.voided_at ? "opacity-50" : ""}>
                     <td className="font-mono font-semibold text-xs text-slate-900">
                       {p.receipt_number ?? `REC-${p.id.slice(0, 6).toUpperCase()}`}
+                      {p.payment_group_id && (
+                        <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                          Mixto
+                        </span>
+                      )}
                     </td>
                     <td>{formatBusinessDateTime(p.paid_at)}</td>
                     <td>
@@ -271,8 +294,20 @@ export default async function InvoiceDetailPage({
                       )}
                     </td>
                     <td>
-                      {METHOD_LABEL[p.method as keyof typeof METHOD_LABEL] ?? p.method}
+                      <span className="font-medium text-slate-800">
+                        {METHOD_LABEL[p.method as keyof typeof METHOD_LABEL] ?? p.method}
+                      </span>
+                      {p.bank_name ? (
+                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700">
+                          {p.bank_name}
+                        </span>
+                      ) : null}
                       {p.reference ? ` · Ref: ${p.reference}` : ""}
+                      {p.reconciled_at && (
+                        <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          Conciliado
+                        </span>
+                      )}
                       {p.note ? <span className="block text-xs text-slate-500">{p.note}</span> : null}
                     </td>
                     <td className="font-semibold">
@@ -317,78 +352,208 @@ export default async function InvoiceDetailPage({
         )}
 
         {canWrite && !invoice.voided_at && (
-          <form
+          <MixedPaymentForm
             action={recordInvoicePaymentAction.bind(null, invoice.id)}
-            className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-900">
-                Registrar pago (completo o abono parcial)
-              </p>
-              {totals.balanceCents > 0 && (
-                <span className="text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                  Saldo pendiente: {m(totals.balanceCents)}
-                </span>
-              )}
-            </div>
+            currency={invoice.currency}
+            balanceCents={totals.balanceCents}
+            canVoid={canVoid}
+            bankAccounts={bankAccounts}
+            activeShiftCode={activeShift?.shift.code ?? null}
+          />
+        )}
+      </section>
 
+      {/* Arquitectura de Facturación Electrónica DGII (e-CF · XML E31/E32, Firma Digital y Web Services) */}
+      <section className="panel space-y-4 border-slate-300">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2>Facturación Electrónica DGII (e-CF · XML Oficial)</h2>
+              <Badge tone={invoice.document_scope === "fiscal_ecf" ? "green" : "amber"}>
+                {invoice.document_scope === "fiscal_ecf"
+                  ? "Comprobante e-CF"
+                  : "Modo Factura Interna (Pre-Certificación DGII)"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-slate-600">
+              Estructura técnica lista para emisión de <span className="font-semibold">E31 (Crédito Fiscal)</span> y{" "}
+              <span className="font-semibold">E32 (Consumo)</span>, firma digital XAdES-EPES (.p12) y Web Services DGII.
+              Mientras no ingreses una secuencia e-NCF autorizada, el sistema mantiene la factura como{" "}
+              <span className="font-semibold">Factura Interna</span> sin inventar comprobantes ficticios.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs sm:grid-cols-3">
+          <div>
+            <span className="text-slate-500 block">Emisor (RNC Empresa)</span>
+            <span className="font-mono font-bold text-slate-900">
+              {company.rnc || "Pendiente configurar RNC en Configuración"}
+            </span>
+            <span className="block text-[11px] text-slate-500">
+              {company.legal_name || company.name}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500 block">Comprador (RNC / Cédula)</span>
+            <span className="font-mono font-bold text-slate-900">
+              {customerDoc || "Consumidor Final (Sin RNC)"}
+            </span>
+            <span className="block text-[11px] text-slate-500">{customerName}</span>
+          </div>
+          <div>
+            <span className="text-slate-500 block">Endpoints Web Services DGII</span>
+            <span className="font-mono text-[11px] text-slate-700 block truncate" title={DGII_WS_ENDPOINTS.TesteCF.recepcionEcf}>
+              Pre-Cert: TesteCF / CerteCF
+            </span>
+            <span className="text-[11px] text-emerald-700 font-medium">
+              Semilla → Firma .p12 → Recepción e-CF
+            </span>
+          </div>
+        </div>
+
+        {canWrite && !invoice.voided_at && (
+          <form
+            action={generateEcfXmlAction.bind(null, invoice.id)}
+            className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          >
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Generar / Actualizar XML Estándar e-CF v1.0
+            </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block text-xs font-semibold text-slate-700">
-                Tipo de movimiento
-                <select name="kind" defaultValue="payment" className="input mt-1">
-                  <option value="payment">Pago / Abono</option>
-                  <option value="advance">Anticipo</option>
-                  {canVoid && <option value="refund">Reembolso</option>}
-                </select>
-              </label>
-
-              <label className="block text-xs font-semibold text-slate-700">
-                Método de pago *
-                <select name="method" defaultValue="cash" className="input mt-1">
-                  {Object.entries(METHOD_LABEL).map(([k, l]) => (
-                    <option key={k} value={k}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block text-xs font-semibold text-slate-700">
-                Importe ({invoice.currency}) *
-                <input
-                  name="amount"
-                  required
-                  inputMode="decimal"
-                  defaultValue={totals.balanceCents > 0 ? fromCents(totals.balanceCents) : ""}
-                  placeholder="0.00"
+                Tipo de e-CF DGII *
+                <select
+                  name="ecf_tipo"
+                  defaultValue={
+                    invoice.fiscal_type === "E31" ||
+                    invoice.fiscal_type === "E32" ||
+                    invoice.fiscal_type === "E44" ||
+                    invoice.fiscal_type === "E45"
+                      ? invoice.fiscal_type
+                      : customerDoc && customerDoc.replace(/\D/g, "").length === 9
+                        ? "E31"
+                        : "E32"
+                  }
                   className="input mt-1"
+                >
+                  <option value="E31">E31 · Factura de Crédito Fiscal Electrónica</option>
+                  <option value="E32">E32 · Factura de Consumo Electrónica</option>
+                  <option value="E44">E44 · Regímenes Especiales Electrónico</option>
+                  <option value="E45">E45 · Gubernamental Electrónico</option>
+                </select>
+              </label>
+
+              <label className="block text-xs font-semibold text-slate-700">
+                Ambiente DGII *
+                <select name="environment" defaultValue="TesteCF" className="input mt-1">
+                  <option value="TesteCF">TesteCF (Pre-Certificación / Pruebas)</option>
+                  <option value="CerteCF">CerteCF (Certificación DGII)</option>
+                  <option value="eCF">eCF (Producción DGII)</option>
+                </select>
+              </label>
+
+              <label className="block text-xs font-semibold text-slate-700">
+                Secuencia e-NCF Autorizada (Opcional)
+                <input
+                  name="e_ncf"
+                  defaultValue={
+                    invoice.ncf_or_ecf && invoice.ncf_or_ecf.toUpperCase().startsWith("E")
+                      ? invoice.ncf_or_ecf
+                      : ""
+                  }
+                  placeholder="Dejar vacío si es Factura Interna"
+                  className="input mt-1 font-mono"
                 />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
-                Referencia (si no es efectivo)
+                Vencimiento Secuencia (Opcional)
                 <input
-                  name="reference"
-                  placeholder="Núm. transferencia / autorización"
+                  type="date"
+                  name="expiration_date"
+                  defaultValue={invoice.ncf_expiration_date ?? ""}
                   className="input mt-1"
                 />
               </label>
             </div>
 
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <label className="block flex-1 min-w-[220px] text-xs font-semibold text-slate-700">
-                Concepto o nota del recibo (opcional)
-                <input
-                  name="note"
-                  placeholder="Ej: Abono del 50% / Saldo final al entregar vehículo"
-                  className="input mt-1"
-                />
-              </label>
-              <button type="submit" className="btn btn-primary">
-                Registrar pago y generar recibo
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <p className="text-[11px] text-slate-500">
+                Si dejas la secuencia e-NCF vacía, se generará el XML técnico para validación y pruebas sin alterar la condición de Factura Interna.
+              </p>
+              <button type="submit" className="btn btn-secondary btn-sm">
+                Generar XML e-CF DGII
               </button>
             </div>
           </form>
+        )}
+
+        {ecfSubmissions.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Comprobantes XML e-CF Generados ({ecfSubmissions.length})
+            </h3>
+            {ecfSubmissions.map((sub) => {
+              const sha256Hash =
+                sub.dgii_response && typeof sub.dgii_response === "object" && "xml_sha256" in sub.dgii_response
+                  ? String(sub.dgii_response.xml_sha256)
+                  : null;
+              return (
+                <div
+                  key={sub.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs space-y-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900 text-sm">
+                        {sub.ecf_type}
+                      </span>
+                      <Badge tone={sub.dgii_status === "accepted" ? "green" : "blue"}>
+                        {sub.dgii_status === "draft_xml"
+                          ? "XML Generado · Listo para Firma .p12"
+                          : sub.dgii_status}
+                      </Badge>
+                      <span className="rounded bg-white px-2 py-0.5 font-mono text-[11px] border border-slate-200">
+                        Ambiente: {sub.environment}
+                      </span>
+                      <span className="text-slate-500">
+                        {sub.encf ? `e-NCF: ${sub.encf}` : "Simulación Interna (Sin e-NCF fiscal)"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/api/v1/facturacion/ecf?invoiceId=${invoice.id}&submissionId=${sub.id}&download=1`}
+                        className="btn btn-primary btn-sm"
+                      >
+                        Descargar XML ({sub.ecf_type})
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 text-[11px] text-slate-600 sm:grid-cols-3">
+                    <div>
+                      <span className="font-semibold text-slate-700">Código Seguridad (6 dígitos):</span>{" "}
+                      <span className="font-mono">{sub.security_code ?? "Pendiente firma .p12"}</span>
+                    </div>
+                    <div className="sm:col-span-2 truncate">
+                      <span className="font-semibold text-slate-700">Digest SHA-256:</span>{" "}
+                      <span className="font-mono">{sha256Hash ?? "—"}</span>
+                    </div>
+                  </div>
+
+                  <details className="pt-1">
+                    <summary className="cursor-pointer font-semibold text-slate-700 hover:text-slate-900">
+                      Ver estructura XML &lt;ECF&gt; generada
+                    </summary>
+                    <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] text-emerald-300">
+                      {sub.xml_unsigned}
+                    </pre>
+                  </details>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 

@@ -37,6 +37,11 @@ const SECTIONS: { category: string; items: NavItem[] }[] = [
         label: "Facturación",
         icon: icon(<><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2 2-1.3V8z" /><path d="M14 2v6h6" /><path d="M8 13h8" /><path d="M8 17h5" /></>),
       },
+      {
+        href: "/admin/caja",
+        label: "Caja y Bancos",
+        icon: icon(<><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><path d="M6 15h4" /></>),
+      },
     ],
   },
   {
