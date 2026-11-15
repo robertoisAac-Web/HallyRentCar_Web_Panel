@@ -251,3 +251,237 @@ export async function listEcfSubmissionsForInvoice(invoiceId: string): Promise<E
   }
   return (data ?? []) as EcfSubmissionRow[];
 }
+
+export interface DgiiSettingsRow {
+  company_id: string;
+  environment: DgiiEnvironment;
+  integration_mode: "direct_dgii" | "psfe";
+  default_tax_rate: string;
+  auto_assign_sequence: boolean;
+  p12_file_name: string | null;
+  has_p12_certificate: boolean;
+  has_p12_password: boolean;
+  p12_uploaded_at: string | null;
+  psfe_provider: string | null;
+  psfe_api_url: string | null;
+  has_psfe_token: boolean;
+  updated_at: string;
+}
+
+export interface DgiiSequenceRow {
+  id: string;
+  company_id: string;
+  fiscal_type: "B01" | "B02" | "B14" | "B15" | "E31" | "E32" | "E33" | "E34" | "E44" | "E45";
+  prefix: string;
+  padding_length: number;
+  start_number: number;
+  end_number: number;
+  current_number: number;
+  expiration_date: string | null;
+  authorization_number: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export async function getDgiiSettings(): Promise<DgiiSettingsRow> {
+  const ctx = await requirePermission("payments:read");
+  const sb = await createClient();
+  const { data } = await sb
+    .from("dgii_settings")
+    .select("*")
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+
+  if (!data) {
+    return {
+      company_id: ctx.companyId,
+      environment: "TesteCF",
+      integration_mode: "direct_dgii",
+      default_tax_rate: "18.00",
+      auto_assign_sequence: true,
+      p12_file_name: null,
+      has_p12_certificate: false,
+      has_p12_password: false,
+      p12_uploaded_at: null,
+      psfe_provider: null,
+      psfe_api_url: null,
+      has_psfe_token: false,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  return {
+    company_id: data.company_id as string,
+    environment: (data.environment as DgiiEnvironment) ?? "TesteCF",
+    integration_mode: (data.integration_mode as "direct_dgii" | "psfe") ?? "direct_dgii",
+    default_tax_rate: String(data.default_tax_rate ?? "18.00"),
+    auto_assign_sequence: Boolean(data.auto_assign_sequence),
+    p12_file_name: (data.p12_file_name as string | null) ?? null,
+    has_p12_certificate: Boolean(data.p12_base64),
+    has_p12_password: Boolean(data.p12_password),
+    p12_uploaded_at: (data.p12_uploaded_at as string | null) ?? null,
+    psfe_provider: (data.psfe_provider as string | null) ?? null,
+    psfe_api_url: (data.psfe_api_url as string | null) ?? null,
+    has_psfe_token: Boolean(data.psfe_api_token),
+    updated_at: data.updated_at as string,
+  };
+}
+
+export async function updateDgiiSettings(input: {
+  environment: DgiiEnvironment;
+  integration_mode: "direct_dgii" | "psfe";
+  default_tax_rate: number;
+  auto_assign_sequence: boolean;
+  p12_file_name?: string | null;
+  p12_base64?: string | null;
+  p12_password?: string | null;
+  psfe_provider?: string | null;
+  psfe_api_url?: string | null;
+  psfe_api_token?: string | null;
+}) {
+  const ctx = await requirePermission("company:manage");
+  const sb = await createClient();
+
+  const patch: Record<string, unknown> = {
+    company_id: ctx.companyId,
+    environment: input.environment,
+    integration_mode: input.integration_mode,
+    default_tax_rate: Number.isFinite(input.default_tax_rate) ? input.default_tax_rate : 18,
+    auto_assign_sequence: input.auto_assign_sequence,
+    psfe_provider: input.psfe_provider?.trim() || null,
+    psfe_api_url: input.psfe_api_url?.trim() || null,
+    updated_at: new Date().toISOString(),
+    updated_by: ctx.userId,
+  };
+
+  if (input.p12_base64 && input.p12_file_name) {
+    patch.p12_file_name = input.p12_file_name;
+    patch.p12_base64 = input.p12_base64;
+    patch.p12_uploaded_at = new Date().toISOString();
+  }
+  if (input.p12_password && input.p12_password.trim().length > 0) {
+    patch.p12_password = input.p12_password.trim();
+  }
+  if (input.psfe_api_token && input.psfe_api_token.trim().length > 0) {
+    patch.psfe_api_token = input.psfe_api_token.trim();
+  }
+
+  const { error } = await sb.from("dgii_settings").upsert(patch, { onConflict: "company_id" });
+  if (error) {
+    console.error("Error guardando dgii_settings:", error);
+    throw new Error(error.message || "No se pudo guardar la configuración fiscal DGII");
+  }
+}
+
+export async function listDgiiSequences(): Promise<DgiiSequenceRow[]> {
+  const ctx = await requirePermission("payments:read");
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from("dgii_sequences")
+    .select("*")
+    .eq("company_id", ctx.companyId)
+    .order("is_active", { ascending: false })
+    .order("fiscal_type", { ascending: true });
+
+  if (error) {
+    console.error("Error listando secuencias DGII:", error);
+    return [];
+  }
+
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    company_id: r.company_id as string,
+    fiscal_type: r.fiscal_type as DgiiSequenceRow["fiscal_type"],
+    prefix: r.prefix as string,
+    padding_length: Number(r.padding_length ?? 10),
+    start_number: Number(r.start_number),
+    end_number: Number(r.end_number),
+    current_number: Number(r.current_number),
+    expiration_date: (r.expiration_date as string | null) ?? null,
+    authorization_number: (r.authorization_number as string | null) ?? null,
+    is_active: Boolean(r.is_active),
+    created_at: r.created_at as string,
+  }));
+}
+
+export async function createDgiiSequence(input: {
+  fiscal_type: DgiiSequenceRow["fiscal_type"];
+  start_number: number;
+  end_number: number;
+  next_number?: number;
+  expiration_date?: string;
+  authorization_number?: string;
+}) {
+  const ctx = await requirePermission("company:manage");
+  if (!Number.isFinite(input.start_number) || input.start_number < 1) {
+    throw new ValidationError("El número inicial de la secuencia debe ser mayor o igual a 1");
+  }
+  if (!Number.isFinite(input.end_number) || input.end_number < input.start_number) {
+    throw new ValidationError("El número final debe ser mayor o igual al número inicial");
+  }
+
+  const nextNum =
+    input.next_number && Number.isFinite(input.next_number) && input.next_number >= input.start_number
+      ? input.next_number
+      : input.start_number;
+  const currentNumber = nextNum - 1;
+  const isEcf = input.fiscal_type.startsWith("E");
+  const paddingLength = isEcf ? 10 : 8;
+
+  const sb = await createClient();
+  const { error } = await sb.from("dgii_sequences").insert({
+    company_id: ctx.companyId,
+    fiscal_type: input.fiscal_type,
+    prefix: input.fiscal_type,
+    padding_length: paddingLength,
+    start_number: input.start_number,
+    end_number: input.end_number,
+    current_number: currentNumber,
+    expiration_date: input.expiration_date?.trim() || null,
+    authorization_number: input.authorization_number?.trim() || null,
+    is_active: true,
+    created_by: ctx.userId,
+  });
+
+  if (error) {
+    console.error("Error creando secuencia DGII:", error);
+    throw new Error(error.message || "No se pudo registrar la secuencia de comprobantes");
+  }
+}
+
+export async function toggleDgiiSequence(id: string, isActive: boolean) {
+  const ctx = await requirePermission("company:manage");
+  const sb = await createClient();
+  const { error } = await sb
+    .from("dgii_sequences")
+    .update({ is_active: isActive })
+    .eq("id", id)
+    .eq("company_id", ctx.companyId);
+
+  if (error) {
+    throw new Error(error.message || "No se pudo actualizar el estado de la secuencia");
+  }
+}
+
+export async function consumeNextDgiiSequence(
+  companyId: string,
+  fiscalType: string
+): Promise<{ ncf_or_ecf: string; expiration_date: string | null } | null> {
+  if (!fiscalType || fiscalType === "none") return null;
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("consume_next_dgii_sequence", {
+    p_company_id: companyId,
+    p_fiscal_type: fiscalType,
+  });
+
+  if (error || !data || !Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+
+  const row = data[0] as { ncf_or_ecf?: string; expiration_date?: string | null };
+  if (!row.ncf_or_ecf) return null;
+  return {
+    ncf_or_ecf: row.ncf_or_ecf,
+    expiration_date: row.expiration_date ?? null,
+  };
+}

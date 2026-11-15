@@ -94,9 +94,14 @@ export default async function FacturacionPage({
             <strong>Factura Interna</strong> sin generar comprobantes fiscales ficticios.
           </p>
         </div>
-        <span className="shrink-0 self-start rounded-full border border-sky-300 bg-white px-3 py-1 font-semibold text-sky-900 sm:self-center">
-          Modo: Factura Interna / DGII Ready
-        </span>
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
+          <span className="rounded-full border border-sky-300 bg-white px-3 py-1 font-semibold text-sky-900">
+            RNC: 133683687 · DGII Ready
+          </span>
+          <Link href="/admin/configuracion#dgii" className="btn btn-secondary btn-sm">
+            Configurar .p12 y Secuencias DGII →
+          </Link>
+        </div>
       </div>
 
       {/* KPIs Financieros */}

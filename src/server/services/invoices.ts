@@ -503,7 +503,18 @@ export async function createInvoiceFromReservation(
   const dueDate = businessYmd(dueDateObj);
 
   const fiscalType: FiscalType = opts?.fiscalType ?? "none";
-  const cleanNcf = opts?.ncfOrEcf?.trim() || null;
+  let cleanNcf = opts?.ncfOrEcf?.trim() || null;
+  let autoExpDate: string | null = null;
+  if (!cleanNcf && fiscalType !== "none") {
+    const { data: seqRows } = await sb.rpc("consume_next_dgii_sequence", {
+      p_company_id: ctx.companyId,
+      p_fiscal_type: fiscalType,
+    });
+    if (Array.isArray(seqRows) && seqRows[0]?.ncf_or_ecf) {
+      cleanNcf = String(seqRows[0].ncf_or_ecf);
+      autoExpDate = seqRows[0].expiration_date ? String(seqRows[0].expiration_date) : null;
+    }
+  }
   const docScope: DocumentScope = cleanNcf
     ? fiscalType.startsWith("E")
       ? "fiscal_ecf"
@@ -530,6 +541,7 @@ export async function createInvoiceFromReservation(
       document_scope: docScope,
       fiscal_type: fiscalType,
       ncf_or_ecf: cleanNcf,
+      ncf_expiration_date: autoExpDate,
       dgii_status: cleanNcf ? "issued" : fiscalType !== "none" ? "pending_integration" : "not_applicable",
       customer_tax_id: opts?.customerTaxId?.trim() || cust?.id_number || null,
       customer_tax_name: opts?.customerTaxName?.trim() || cust?.full_name || null,
@@ -669,7 +681,20 @@ export async function createManualInvoice(input: ManualInvoiceInput): Promise<{ 
     throw new ValidationError("La fecha de vencimiento no puede ser anterior a la fecha de emisión");
   }
 
-  const cleanNcf = input.ncf_or_ecf?.trim() || null;
+  let cleanNcf = input.ncf_or_ecf?.trim() || null;
+  let cleanExpDate = input.ncf_expiration_date?.trim() || null;
+  if (!cleanNcf && input.fiscal_type !== "none") {
+    const { data: seqRows } = await sb.rpc("consume_next_dgii_sequence", {
+      p_company_id: ctx.companyId,
+      p_fiscal_type: input.fiscal_type,
+    });
+    if (Array.isArray(seqRows) && seqRows[0]?.ncf_or_ecf) {
+      cleanNcf = String(seqRows[0].ncf_or_ecf);
+      if (!cleanExpDate && seqRows[0].expiration_date) {
+        cleanExpDate = String(seqRows[0].expiration_date);
+      }
+    }
+  }
   const docScope: DocumentScope = cleanNcf
     ? input.fiscal_type.startsWith("E")
       ? "fiscal_ecf"
@@ -696,7 +721,7 @@ export async function createManualInvoice(input: ManualInvoiceInput): Promise<{ 
       document_scope: docScope,
       fiscal_type: input.fiscal_type,
       ncf_or_ecf: cleanNcf,
-      ncf_expiration_date: input.ncf_expiration_date?.trim() || null,
+      ncf_expiration_date: cleanExpDate,
       security_code: input.security_code?.trim() || null,
       dgii_status: cleanNcf ? "issued" : input.fiscal_type !== "none" ? "pending_integration" : "not_applicable",
       customer_tax_id: customerDoc || null,
