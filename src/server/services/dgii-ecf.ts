@@ -174,9 +174,15 @@ export async function generateAndSaveEcfXml(
     </IdDoc>
     <Emisor>
       <RNCEmisor>${escapeXml(rncEmisor)}</RNCEmisor>
-      <RazonSocialEmisor>${escapeXml(company.legal_name || company.name)}</RazonSocialEmisor>
-      <NombreComercial>${escapeXml(company.name)}</NombreComercial>
-      <DireccionEmisor>${escapeXml(company.address || "Santo Domingo, República Dominicana")}</DireccionEmisor>
+      <RazonSocialEmisor>${escapeXml(company.legal_name || "HALLY RENT A CAR E INVERSIONES S.R.L.")}</RazonSocialEmisor>
+      <NombreComercial>${escapeXml(company.name || "Hally Rent a Car")}</NombreComercial>
+      <DireccionEmisor>${escapeXml(company.address || "Calle de Febrero, Edif. 2, Res. Quintas Jeremy Francisco del Rosario Sánchez #27, Sector Los Frailes, Santo Domingo Este")}</DireccionEmisor>
+      <Municipio>320100</Municipio>
+      <Provincia>320000</Provincia>
+      <TablaTelefonoEmisor>
+        <TelefonoEmisor>${escapeXml(company.phone || "809-854-9733")}</TelefonoEmisor>
+      </TablaTelefonoEmisor>
+      <CorreoEmisor>jrubiocuello@gmail.com</CorreoEmisor>
       <FechaEmision>${formatDateDgii(invoice.issue_date)}</FechaEmision>
     </Emisor>
     <Comprador>
