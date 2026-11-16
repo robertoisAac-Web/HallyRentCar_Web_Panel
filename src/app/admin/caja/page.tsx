@@ -3,7 +3,6 @@ import { requirePermission } from "@/server/auth/permissions";
 import {
   getActiveShiftForCurrentUser,
   listCashShifts,
-  listBankAccounts,
   listTransferPayments,
 } from "@/server/services/cash-and-banks";
 import { formatMoney, fromCents, toCents } from "@/lib/money";
@@ -13,8 +12,6 @@ import {
   openShiftAction,
   closeShiftAction,
   reconcileTransferAction,
-  createBankAccountAction,
-  deleteBankAccountAction,
 } from "./actions";
 
 export default async function CajaBancosPage({
@@ -30,10 +27,9 @@ export default async function CajaBancosPage({
   const canWrite = ctx.permissions.has("payments:write");
   const { error, ok, reconciled = "all" } = await searchParams;
 
-  const [activeShift, shifts, bankAccounts, transfers] = await Promise.all([
+  const [activeShift, shifts, transfers] = await Promise.all([
     getActiveShiftForCurrentUser(),
     listCashShifts(),
-    listBankAccounts(false),
     listTransferPayments({ reconciled }),
   ]);
 
@@ -356,100 +352,7 @@ export default async function CajaBancosPage({
         )}
       </section>
 
-      {/* 3. Catálogo de Cuentas Bancarias Receptoras */}
-      <section className="panel space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2>Cuentas Bancarias Receptoras</h2>
-            <p className="text-xs text-slate-500">
-              Bancos disponibles al registrar pagos por transferencia en contratos de alquiler y facturas.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          {bankAccounts.map((b) => (
-            <div
-              key={b.id}
-              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs space-y-1.5 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-sm">{b.bank_name}</span>
-                  <Badge tone={b.is_active ? "green" : "gray"}>{b.currency}</Badge>
-                </div>
-                <p className="text-slate-600 mt-1">{b.account_label}</p>
-                {b.account_number_masked && (
-                  <p className="font-mono text-slate-500">Cuenta: {b.account_number_masked}</p>
-                )}
-              </div>
-              {canWrite && (
-                <div className="pt-2 border-t border-slate-200/70 flex justify-end">
-                  <form action={deleteBankAccountAction.bind(null, b.id)}>
-                    <button
-                      type="submit"
-                      className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:underline cursor-pointer"
-                    >
-                      Eliminar cuenta
-                    </button>
-                  </form>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {canWrite && (
-          <details className="rounded-xl border border-slate-200 bg-white p-3.5">
-            <summary className="cursor-pointer text-xs font-bold text-slate-800">
-              + Agregar nueva cuenta bancaria receptora
-            </summary>
-            <form
-              action={createBankAccountAction}
-              className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end"
-            >
-              <label className="block text-xs font-semibold text-slate-700">
-                Banco *
-                <input
-                  name="bank_name"
-                  required
-                  placeholder="Ej: Banco Santa Cruz / Scotiabank"
-                  className="input mt-1"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Alias / Descripción *
-                <input
-                  name="account_alias"
-                  required
-                  placeholder="Ej: Cuenta Operativa Principal"
-                  className="input mt-1"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Últimos dígitos (Opcional)
-                <input
-                  name="account_number_mask"
-                  placeholder="Ej: ****4580"
-                  className="input mt-1"
-                />
-              </label>
-              <label className="block text-xs font-semibold text-slate-700">
-                Moneda
-                <select name="currency" defaultValue="DOP" className="input mt-1">
-                  <option value="DOP">DOP (RD$)</option>
-                  <option value="USD">USD (US$)</option>
-                </select>
-              </label>
-              <button type="submit" className="btn btn-secondary">
-                Guardar Banco
-              </button>
-            </form>
-          </details>
-        )}
-      </section>
-
-      {/* 4. Historial de Turnos y Arqueos Diarios */}
+      {/* 3. Historial de Turnos y Arqueos Diarios */}
       <section className="panel space-y-4">
         <div>
           <h2>Historial de Turnos y Arqueos de Caja</h2>
