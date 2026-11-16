@@ -33,15 +33,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-[#f8fafc] text-slate-800 antialiased select-none md:select-auto">
-      <aside className="flex flex-col gap-4 bg-[#0a1926] p-4 text-white md:sticky md:top-0 md:h-screen md:w-64 md:gap-6 md:p-5 border-r border-slate-800/80 shadow-xs">
+      <aside className="flex flex-col gap-4 bg-[#0b2347] p-4 text-white md:sticky md:top-0 md:h-screen md:w-64 md:gap-6 md:p-5 border-r border-slate-800/80 shadow-xs">
         <div className="flex items-center justify-between pb-3 border-b border-white/10 md:block">
           <div>
             <Link href="/admin/dashboard" className="block hover:opacity-90 transition-opacity">
-              <img src="/logo.png" alt={companyName} className="h-8 w-auto" />
+              <img src="/logo.png" alt={companyName} className="h-9 w-auto" />
             </Link>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#76e012] shadow-[0_0_6px_#76e012]"></span>
-              <p className="text-[11px] text-slate-400 font-medium">Panel Administrativo</p>
+              <span className="inline-block w-2 h-2 rounded-full bg-[#229ed9] shadow-[0_0_6px_#229ed9]"></span>
+              <p className="text-[11px] text-slate-300 font-medium">Panel Administrativo</p>
             </div>
           </div>
         </div>

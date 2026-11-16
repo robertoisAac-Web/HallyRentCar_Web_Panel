@@ -18,15 +18,17 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/favicon.png", sizes: "64x64", type: "image/png" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
+    shortcut: ["/favicon.png"],
     apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a1926",
+  themeColor: "#0b2347",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
