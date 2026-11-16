@@ -97,7 +97,7 @@ export function Sidebar({ allowed }: { allowed: string[] }) {
 
         return (
           <div key={section.category} className="space-y-1">
-            <p className="hidden md:block px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400/80">
+            <p className="hidden md:block px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               {section.category}
             </p>
             <div className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">

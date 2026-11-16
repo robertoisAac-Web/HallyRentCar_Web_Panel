@@ -136,9 +136,9 @@ export function InstallDesktopButton({ variant = "sidebar" }: { variant?: "sideb
       );
     }
     return (
-      <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-slate-300">
-        <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#76e012] shadow-[0_0_6px_#76e012]" />
-        <span className="truncate font-medium">App de Escritorio Activa</span>
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] text-[#0b2347]">
+        <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#229ed9] shadow-[0_0_6px_#229ed9]" />
+        <span className="truncate font-semibold">App de Escritorio Activa</span>
       </div>
     );
   }
@@ -149,7 +149,7 @@ export function InstallDesktopButton({ variant = "sidebar" }: { variant?: "sideb
         <button
           type="button"
           onClick={handleInstallClick}
-          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg border border-[#76e012]/40 bg-[#76e012]/10 px-3 py-2.5 text-left text-xs font-semibold text-[#76e012] transition-all hover:bg-[#76e012]/20 cursor-pointer"
+          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-left text-xs font-semibold text-[#0b2347] transition-all hover:bg-sky-100 cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -159,7 +159,7 @@ export function InstallDesktopButton({ variant = "sidebar" }: { variant?: "sideb
             </svg>
             <span>Instalar App en PC</span>
           </span>
-          <span className="rounded bg-[#76e012] px-1.5 py-0.5 text-[10px] font-bold text-[#0a1926]">
+          <span className="rounded bg-[#0b2347] px-1.5 py-0.5 text-[10px] font-bold text-white">
             {canPrompt ? "1 clic" : "PC"}
           </span>
         </button>

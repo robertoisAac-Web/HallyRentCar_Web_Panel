@@ -33,15 +33,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-[#f8fafc] text-slate-800 antialiased select-none md:select-auto">
-      <aside className="flex flex-col gap-4 bg-[#0b2347] p-4 text-white md:sticky md:top-0 md:h-screen md:w-64 md:gap-6 md:p-5 border-r border-slate-800/80 shadow-xs">
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 md:block">
+      <aside className="flex flex-col gap-4 bg-white p-4 text-slate-900 md:sticky md:top-0 md:h-screen md:w-64 md:gap-6 md:p-5 border-r border-slate-200 shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 md:block">
           <div>
             <Link href="/admin/dashboard" className="block hover:opacity-90 transition-opacity">
-              <img src="/logo.png" alt={companyName} className="h-9 w-auto" />
+              <img src="/logo-dark.png" alt={companyName} className="h-11 w-auto" />
             </Link>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="inline-block w-2 h-2 rounded-full bg-[#229ed9] shadow-[0_0_6px_#229ed9]"></span>
-              <p className="text-[11px] text-slate-300 font-medium">Panel Administrativo</p>
+              <p className="text-[11px] text-slate-600 font-medium">Panel Administrativo</p>
             </div>
           </div>
         </div>
@@ -50,16 +50,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Sidebar allowed={Object.entries(NAV_PERMISSION).filter(([, p]) => ctx.permissions.has(p)).map(([h]) => h)} />
         </div>
 
-        <div className="mt-auto hidden border-t border-white/10 pt-4 text-xs md:block">
+        <div className="mt-auto hidden border-t border-slate-200 pt-4 text-xs md:block">
           <InstallDesktopButton variant="sidebar" />
           <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-400">Rol activo</span>
-            <span className="font-semibold text-white/90 bg-white/10 px-2 py-0.5 rounded text-[11px]">
+            <span className="text-slate-500">Rol activo</span>
+            <span className="font-semibold text-[#0b2347] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[11px]">
               {ROLE_LABEL[ctx.role]}
             </span>
           </div>
           <form action={signOutAction}>
-            <button className="w-full text-left py-1 text-slate-400 hover:text-white transition-colors flex items-center justify-between cursor-pointer">
+            <button className="w-full text-left py-1 text-slate-600 hover:text-slate-900 font-medium transition-colors flex items-center justify-between cursor-pointer">
               <span>Cerrar sesión</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
