@@ -1,9 +1,100 @@
 import "server-only";
-import { createHash } from "crypto";
+import { createHash, createSign } from "crypto";
+import forge from "node-forge";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/server/auth/permissions";
 import { ValidationError } from "@/lib/validators/common";
 import { getInvoiceDetail } from "./invoices";
+
+export function extractP12Credentials(p12Base64: string, password: string): {
+  privateKeyPem: string;
+  certBase64Der: string;
+  subjectName: string;
+} {
+  try {
+    const derBytes = forge.util.decode64(p12Base64);
+    const asn1 = forge.asn1.fromDer(derBytes);
+    const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, password);
+
+    const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[
+      forge.pki.oids.pkcs8ShroudedKeyBag
+    ] ?? [];
+    const plainKeyBags = p12.getBags({ bagType: forge.pki.oids.keyBag })[
+      forge.pki.oids.keyBag
+    ] ?? [];
+    const allKeyBags = [...keyBags, ...plainKeyBags];
+    const keyObj = allKeyBags.find((b) => b.key)?.key;
+    if (!keyObj) {
+      throw new Error("No se encontró la clave privada dentro del archivo .p12");
+    }
+
+    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[
+      forge.pki.oids.certBag
+    ] ?? [];
+    const certObj = certBags.find((b) => b.cert)?.cert;
+    if (!certObj) {
+      throw new Error("No se encontró el certificado X.509 dentro del archivo .p12");
+    }
+
+    const privateKeyPem = forge.pki.privateKeyToPem(keyObj);
+    const certAsn1 = forge.pki.certificateToAsn1(certObj);
+    const certDer = forge.asn1.toDer(certAsn1).getBytes();
+    const certBase64Der = forge.util.encode64(certDer);
+
+    const cnAttr = certObj.subject.getField("CN");
+    const subjectName = cnAttr ? String(cnAttr.value) : "Certificado Tributario DGII";
+
+    return { privateKeyPem, certBase64Der, subjectName };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.toLowerCase().includes("mac") || msg.toLowerCase().includes("password")) {
+      throw new ValidationError("La contraseña del certificado .p12 es incorrecta. Verifícala e intenta de nuevo.");
+    }
+    throw new ValidationError("No se pudo abrir el certificado .p12 con la contraseña indicada.");
+  }
+}
+
+export function signDgiiXmlWithP12(
+  xmlUnsigned: string,
+  p12Base64: string,
+  p12Password: string
+): {
+  xmlSigned: string;
+  securityCode: string;
+  subjectName: string;
+} {
+  const { privateKeyPem, certBase64Der, subjectName } = extractP12Credentials(p12Base64, p12Password);
+
+  const cleanBody = xmlUnsigned
+    .replace(/^<\?xml[^>]*\?>\s*/i, "")
+    .trim();
+
+  const digestBase64 = createHash("sha256").update(cleanBody, "utf8").digest("base64");
+
+  const signedInfoXml = `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></CanonicalizationMethod><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>${digestBase64}</DigestValue></Reference></SignedInfo>`;
+
+  const signer = createSign("RSA-SHA256");
+  signer.update(signedInfoXml, "utf8");
+  signer.end();
+  const signatureBase64 = signer.sign(privateKeyPem, "base64");
+
+  // Código de Seguridad oficial DGII: primeros 6 caracteres del SignatureValue
+  const securityCode = signatureBase64.slice(0, 6);
+
+  const signatureBlock = `  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    ${signedInfoXml}
+    <SignatureValue>${signatureBase64}</SignatureValue>
+    <KeyInfo>
+      <X509Data>
+        <X509Certificate>${certBase64Der}</X509Certificate>
+      </X509Data>
+    </KeyInfo>
+  </Signature>`;
+
+  const xmlSigned = xmlUnsigned.replace(/<\/ECF>\s*$/i, `${signatureBlock}\n</ECF>`);
+
+  return { xmlSigned, securityCode, subjectName };
+}
 
 export type DgiiEnvironment = "TesteCF" | "CerteCF" | "eCF";
 export type EcfDocType = "E31" | "E32" | "E33" | "E34" | "E44" | "E45";
@@ -204,6 +295,37 @@ ${itemsXml}
   const environment: DgiiEnvironment = options?.environment ?? "TesteCF";
 
   const sb = await createClient();
+  const { data: dgiiCfg } = await sb
+    .from("dgii_settings")
+    .select("p12_base64,p12_password")
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+
+  let xmlSigned: string | null = null;
+  let securityCode: string | null = null;
+  let signerSubject: string | null = null;
+
+  if (dgiiCfg?.p12_base64 && dgiiCfg?.p12_password) {
+    try {
+      const signedRes = signDgiiXmlWithP12(
+        xmlUnsigned,
+        dgiiCfg.p12_base64 as string,
+        dgiiCfg.p12_password as string
+      );
+      xmlSigned = signedRes.xmlSigned;
+      securityCode = signedRes.securityCode;
+      signerSubject = signedRes.subjectName;
+
+      // Actualizar el código de seguridad de 6 dígitos en la factura
+      await sb
+        .from("invoices")
+        .update({ security_code: securityCode })
+        .eq("id", invoice.id);
+    } catch (e) {
+      console.error("Advertencia al firmar XML con .p12:", e);
+    }
+  }
+
   const { data, error } = await sb
     .from("dgii_ecf_submissions")
     .insert({
@@ -215,14 +337,17 @@ ${itemsXml}
       rnc_emisor: rncEmisor,
       rnc_comprador: rncComprador || null,
       xml_unsigned: xmlUnsigned,
-      dgii_status: "draft_xml",
+      xml_signed: xmlSigned,
+      security_code: securityCode,
+      dgii_status: xmlSigned ? "signed" : "draft_xml",
       dgii_response: {
         schema_version: "1.0",
         xml_sha256: hashHex,
+        signed_by: signerSubject,
         endpoints: DGII_WS_ENDPOINTS[environment],
-        note: encfValue
-          ? "XML estructurado listo para firma digital X.509 (.p12) y envío a Recepción e-CF DGII."
-          : "Estructura XML generada en modo preparación (pendiente de certificado digital .p12 y secuencia e-NCF autorizada).",
+        note: xmlSigned
+          ? `XML firmado digitalmente con certificado .p12 (${signerSubject}). Código de Seguridad: ${securityCode}`
+          : "Estructura XML generada (sube el certificado .p12 en Configuración para firmarlo digitalmente).",
       },
       created_by: ctx.userId,
     })
@@ -353,6 +478,26 @@ export async function updateDgiiSettings(input: {
     updated_at: new Date().toISOString(),
     updated_by: ctx.userId,
   };
+
+  const { data: existingCfg } = await sb
+    .from("dgii_settings")
+    .select("p12_base64,p12_password")
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+
+  const finalBase64 =
+    input.p12_base64 && input.p12_file_name
+      ? input.p12_base64
+      : (existingCfg?.p12_base64 as string | null) ?? null;
+  const finalPassword =
+    input.p12_password && input.p12_password.trim().length > 0
+      ? input.p12_password.trim()
+      : (existingCfg?.p12_password as string | null) ?? null;
+
+  if (finalBase64 && finalPassword && (input.p12_base64 || input.p12_password)) {
+    // Validar en vivo que la contraseña abre el certificado .p12 correctamente
+    extractP12Credentials(finalBase64, finalPassword);
+  }
 
   if (input.p12_base64 && input.p12_file_name) {
     patch.p12_file_name = input.p12_file_name;

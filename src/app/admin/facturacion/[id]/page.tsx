@@ -509,10 +509,12 @@ export default async function InvoiceDetailPage({
                       <span className="font-mono font-bold text-slate-900 text-sm">
                         {sub.ecf_type}
                       </span>
-                      <Badge tone={sub.dgii_status === "accepted" ? "green" : "blue"}>
-                        {sub.dgii_status === "draft_xml"
-                          ? "XML Generado · Listo para Firma .p12"
-                          : sub.dgii_status}
+                      <Badge tone={sub.dgii_status === "accepted" || sub.dgii_status === "signed" ? "green" : "blue"}>
+                        {sub.dgii_status === "signed"
+                          ? "Firmado Digitalmente con .p12 (XMLDSig)"
+                          : sub.dgii_status === "draft_xml"
+                            ? "XML Generado · Listo para Firma .p12"
+                            : sub.dgii_status}
                       </Badge>
                       <span className="rounded bg-white px-2 py-0.5 font-mono text-[11px] border border-slate-200">
                         Ambiente: {sub.environment}
@@ -544,10 +546,10 @@ export default async function InvoiceDetailPage({
 
                   <details className="pt-1">
                     <summary className="cursor-pointer font-semibold text-slate-700 hover:text-slate-900">
-                      Ver estructura XML &lt;ECF&gt; generada
+                      Ver estructura XML &lt;ECF&gt; {sub.xml_signed ? "firmada con .p12" : "generada"}
                     </summary>
                     <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] text-emerald-300">
-                      {sub.xml_unsigned}
+                      {sub.xml_signed || sub.xml_unsigned}
                     </pre>
                   </details>
                 </div>
