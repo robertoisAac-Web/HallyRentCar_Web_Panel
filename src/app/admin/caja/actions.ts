@@ -8,6 +8,7 @@ import {
   closeCashShift,
   reconcileTransferPayment,
   createBankAccount,
+  deleteBankAccount,
 } from "@/server/services/cash-and-banks";
 
 export async function openShiftAction(fd: FormData) {
@@ -64,6 +65,17 @@ export async function createBankAccountAction(fd: FormData) {
       account_number_masked: String(fd.get("account_number_mask") ?? ""),
       currency,
     });
+  } catch (e) {
+    redirect(`/admin/caja?error=${encodeURIComponent(errorMessage(e))}`);
+  }
+
+  revalidatePath("/admin/caja");
+  redirect("/admin/caja?ok=1");
+}
+
+export async function deleteBankAccountAction(id: string) {
+  try {
+    await deleteBankAccount(id);
   } catch (e) {
     redirect(`/admin/caja?error=${encodeURIComponent(errorMessage(e))}`);
   }

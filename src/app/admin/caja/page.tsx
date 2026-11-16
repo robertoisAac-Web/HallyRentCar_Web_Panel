@@ -14,6 +14,7 @@ import {
   closeShiftAction,
   reconcileTransferAction,
   createBankAccountAction,
+  deleteBankAccountAction,
 } from "./actions";
 
 export default async function CajaBancosPage({
@@ -370,15 +371,29 @@ export default async function CajaBancosPage({
           {bankAccounts.map((b) => (
             <div
               key={b.id}
-              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs space-y-1"
+              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs space-y-1.5 flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-sm">{b.bank_name}</span>
-                <Badge tone={b.is_active ? "green" : "gray"}>{b.currency}</Badge>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-sm">{b.bank_name}</span>
+                  <Badge tone={b.is_active ? "green" : "gray"}>{b.currency}</Badge>
+                </div>
+                <p className="text-slate-600 mt-1">{b.account_label}</p>
+                {b.account_number_masked && (
+                  <p className="font-mono text-slate-500">Cuenta: {b.account_number_masked}</p>
+                )}
               </div>
-              <p className="text-slate-600">{b.account_label}</p>
-              {b.account_number_masked && (
-                <p className="font-mono text-slate-500">Cuenta: {b.account_number_masked}</p>
+              {canWrite && (
+                <div className="pt-2 border-t border-slate-200/70 flex justify-end">
+                  <form action={deleteBankAccountAction.bind(null, b.id)}>
+                    <button
+                      type="submit"
+                      className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:underline cursor-pointer"
+                    >
+                      Eliminar cuenta
+                    </button>
+                  </form>
+                </div>
               )}
             </div>
           ))}

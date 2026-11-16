@@ -96,6 +96,17 @@ export async function createBankAccount(input: {
   if (error) mapError(error);
 }
 
+export async function deleteBankAccount(id: string) {
+  const ctx = await requirePermission("payments:write");
+  const sb = await createClient();
+  const { error } = await sb
+    .from("bank_accounts")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", ctx.companyId);
+  if (error) mapError(error);
+}
+
 export async function getActiveShiftForCurrentUser(): Promise<ShiftLiveSummary | null> {
   const ctx = await requirePermission("payments:read");
   const sb = await createClient();
