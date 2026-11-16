@@ -15,9 +15,13 @@ function mapError(e: { code?: string; message: string }): never {
 }
 
 export async function listUsers(): Promise<UserRow[]> {
-  await requirePermission("users:manage");
+  const ctx = await requirePermission("users:manage");
   const sb = await createClient();
-  const { data, error } = await sb.from("memberships").select("id,user_id,role,is_active").order("created_at");
+  const { data, error } = await sb
+    .from("memberships")
+    .select("id,user_id,role,is_active")
+    .eq("company_id", ctx.companyId)
+    .order("created_at");
   if (error) mapError(error);
   const ids = (data ?? []).map((m) => m.user_id);
   const { data: profiles } = ids.length ? await sb.from("profiles").select("id,full_name").in("id", ids) : { data: [] as { id: string; full_name: string | null }[] };
