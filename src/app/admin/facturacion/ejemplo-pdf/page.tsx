@@ -39,7 +39,7 @@ export default async function SampleInvoicePdfPage() {
                 "Calle de Febrero, Edif. 2, Res. Quintas Jeremy #27, Sector Los Frailes, Santo Domingo Este"}
             </p>
             <p className="text-xs text-neutral-600">
-              Tel: {company.phone || company.whatsapp_number || "809-854-9733"}
+              Tel: {company.phone || company.whatsapp_number || "809-284-7626"}
             </p>
           </div>
 

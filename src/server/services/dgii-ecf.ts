@@ -271,7 +271,7 @@ export async function generateAndSaveEcfXml(
       <Municipio>320100</Municipio>
       <Provincia>320000</Provincia>
       <TablaTelefonoEmisor>
-        <TelefonoEmisor>${escapeXml(company.phone || "809-854-9733")}</TelefonoEmisor>
+        <TelefonoEmisor>${escapeXml(company.phone || "809-284-7626")}</TelefonoEmisor>
       </TablaTelefonoEmisor>
       <CorreoEmisor>jrubiocuello@gmail.com</CorreoEmisor>
       <FechaEmision>${formatDateDgii(invoice.issue_date)}</FechaEmision>
