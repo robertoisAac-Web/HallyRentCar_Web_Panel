@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { createHash } from "crypto";
 import { requirePermission } from "@/server/auth/permissions";
 import {
   getInvoiceDetail,
@@ -9,6 +10,7 @@ import { formatMoney, toCents } from "@/lib/money";
 import { formatBusinessDateTime } from "@/lib/dates";
 import { METHOD_LABEL } from "@/lib/validators/finance";
 import { PrintToolbar } from "@/components/admin/PrintToolbar";
+import { DgiiQrStamp } from "@/components/admin/DgiiQrStamp";
 
 export default async function InvoicePdfPage({
   params,
@@ -27,6 +29,10 @@ export default async function InvoicePdfPage({
   const customerDoc = invoice.customer_tax_id || customer?.id_number || null;
 
   const isFiscalIssued = invoice.document_scope !== "internal" && Boolean(invoice.ncf_or_ecf);
+  const securityCode =
+    invoice.security_code ||
+    createHash("sha256").update(`${invoice.id}:${invoice.code}`).digest("hex").slice(0, 6).toUpperCase();
+  const signDateFormatted = formatBusinessDateTime(invoice.created_at);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -200,6 +206,17 @@ export default async function InvoicePdfPage({
                 <p className="whitespace-pre-wrap text-neutral-600">{invoice.notes}</p>
               </div>
             )}
+
+            <DgiiQrStamp
+              rncEmisor={company.rnc || "133683687"}
+              rncComprador={customerDoc}
+              encf={invoice.ncf_or_ecf || invoice.code}
+              fechaEmision={invoice.issue_date}
+              montoTotal={(totals.totalCents / 100).toFixed(2)}
+              fechaFirma={signDateFormatted}
+              codigoSeguridad={securityCode}
+              isFiscal={isFiscalIssued}
+            />
           </div>
 
           <div className="flex flex-col items-end">

@@ -1,6 +1,7 @@
 import { requirePermission } from "@/server/auth/permissions";
 import { getCompany } from "@/server/services/company";
 import { PrintToolbar } from "@/components/admin/PrintToolbar";
+import { DgiiQrStamp } from "@/components/admin/DgiiQrStamp";
 
 export default async function SampleInvoicePdfPage() {
   await requirePermission("payments:read");
@@ -135,6 +136,17 @@ export default async function SampleInvoicePdfPage() {
                 </li>
               </ul>
             </div>
+
+            <DgiiQrStamp
+              rncEmisor={company.rnc || "133683687"}
+              rncComprador="00114589237"
+              encf="FAC-2026-0001"
+              fechaEmision="2026-11-19"
+              montoTotal="340.00"
+              fechaFirma="19-11-2026 10:00:00"
+              codigoSeguridad="A9F4C2"
+              isFiscal={false}
+            />
           </div>
 
           <div className="flex flex-col items-end">
