@@ -74,11 +74,16 @@ export default async function FacturacionPage({
         title="Facturación"
         subtitle="Emisión de facturas desde reservas o manuales, cobros parciales/completos, recibos y preparación fiscal DGII."
         action={
-          canWrite ? (
-            <Link href="/admin/facturacion/nueva" className="btn btn-primary">
-              + Nueva factura manual
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/admin/facturacion/ejemplo-pdf" className="btn btn-secondary">
+              Ver formato de factura PDF
             </Link>
-          ) : undefined
+            {canWrite && (
+              <Link href="/admin/facturacion/nueva" className="btn btn-primary">
+                + Nueva factura manual
+              </Link>
+            )}
+          </div>
         }
       />
 
