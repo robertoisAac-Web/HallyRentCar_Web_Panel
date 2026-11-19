@@ -8,7 +8,7 @@ import { PrintToolbar } from "@/components/admin/PrintToolbar";
 
 const KIND_TITLE: Record<string, string> = {
   advance: "RECIBO DE ANTICIPO",
-  payment: "RECIBO DE PAGO / INGRESO",
+  payment: "RECIBO DE PAGO",
   refund: "COMPROBANTE DE REEMBOLSO",
 };
 
@@ -32,7 +32,6 @@ export default async function PaymentReceiptPdfPage({
   const customerDoc = invoice.customer_tax_id || customer?.id_number || null;
   const receiptCode = payment.receipt_number || `REC-${payment.id.slice(0, 8).toUpperCase()}`;
 
-  // Calcular balance hasta este pago
   const validPayments = payments.filter((p) => !p.voided_at);
   let paidBeforeCents = 0;
   for (const p of validPayments) {
@@ -54,112 +53,108 @@ export default async function PaymentReceiptPdfPage({
         docTitle={`${receiptCode}_${customerName.replace(/\s+/g, "_")}`}
       />
 
-      <article className="print-sheet rounded-2xl border border-slate-200 bg-white p-8 text-slate-800 shadow-sm md:p-10">
-        {/* Cabecera con Logo y Datos de Hally Rent a Car */}
-        <header className="flex flex-col justify-between gap-6 border-b-2 border-[#0b2347] pb-6 sm:flex-row sm:items-start">
+      <article className="print-sheet rounded-xl border border-neutral-200 bg-white p-8 text-neutral-900 shadow-xs md:p-10">
+        {/* Cabecera sencilla con Logo */}
+        <header className="flex flex-col justify-between gap-6 border-b border-neutral-300 pb-6 sm:flex-row sm:items-start">
           <div className="space-y-1">
             <img
               src="/logo-public-dark.png"
               alt={company.name || "Hally Rent a Car"}
-              className="h-13 w-auto object-contain"
+              className="h-13 w-auto object-contain mb-2"
             />
-            <p className="text-sm font-bold text-[#0b2347] pt-1">
-              {company.legal_name || company.name || "Hally Rent a Car"}
+            <p className="text-sm font-bold text-neutral-900">
+              {company.legal_name || company.name || "HALLY RENT A CAR E INVERSIONES S.R.L."}
             </p>
-            {company.rnc && (
-              <p className="text-xs text-slate-600">
-                <strong>RNC:</strong> {company.rnc}
-              </p>
-            )}
-            {company.address && <p className="text-xs text-slate-600">{company.address}</p>}
+            {company.rnc && <p className="text-xs text-neutral-600">RNC: {company.rnc}</p>}
+            {company.address && <p className="text-xs text-neutral-600 max-w-xs">{company.address}</p>}
             {(company.phone || company.whatsapp_number) && (
-              <p className="text-xs text-slate-600">
-                <strong>Tel / WhatsApp:</strong> {company.phone || company.whatsapp_number}
+              <p className="text-xs text-neutral-600">
+                Tel: {company.phone || company.whatsapp_number}
               </p>
             )}
           </div>
 
-          <div className="rounded-xl border-2 border-[#0b2347] bg-slate-50 p-4 text-right sm:min-w-[240px]">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#229ed9]">
-              COMPROBANTE INTERNO
-            </p>
-            <h1 className="mt-0.5 text-lg font-extrabold text-[#0b2347]">
+          <div className="text-left sm:text-right space-y-1">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900">
               {KIND_TITLE[payment.kind] ?? "RECIBO DE PAGO"}
             </h1>
-            <p className="mt-1 font-mono text-base font-bold text-slate-900">N.º {receiptCode}</p>
-            <p className="mt-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
-              <strong>Fecha y Hora:</strong> {formatBusinessDateTime(payment.paid_at)}
+            <p className="font-mono text-sm font-semibold text-neutral-900">N.º {receiptCode}</p>
+            <p className="text-xs text-neutral-600">
+              Fecha: {formatBusinessDateTime(payment.paid_at)}
             </p>
-            <p className="text-xs font-bold text-emerald-700 mt-1">
-              Importe: {m(thisAmountCents)}
+            <p className="pt-1 text-base font-bold text-neutral-900">
+              Monto: {m(thisAmountCents)}
             </p>
           </div>
         </header>
 
-        {/* Cuerpo del Recibo */}
-        <section className="my-6 space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-5 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2">
+        {/* Detalle del Recibo sin cajas de color */}
+        <section className="my-6 space-y-4 border-b border-neutral-200 pb-6 text-sm">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <span className="block text-xs font-bold uppercase text-slate-400">Recibimos de</span>
-              <span className="font-bold text-slate-900 text-base">{customerName}</span>
-              {customerDoc && <span className="block text-xs text-slate-600">RNC / Doc: {customerDoc}</span>}
+              <span className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                Recibimos de
+              </span>
+              <span className="font-bold text-neutral-900 text-base">{customerName}</span>
+              {customerDoc && <span className="block text-xs text-neutral-600">RNC / Doc: {customerDoc}</span>}
             </div>
 
             <div>
-              <span className="block text-xs font-bold uppercase text-slate-400">La suma de</span>
-              <span className="font-extrabold text-emerald-700 text-xl">{m(thisAmountCents)}</span>
-              <span className="block text-xs text-slate-600">
-                Método: {METHOD_LABEL[payment.method as keyof typeof METHOD_LABEL] ?? payment.method}
-                {payment.reference ? ` · Ref: ${payment.reference}` : ""}
+              <span className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                Forma de pago
               </span>
+              <span className="font-semibold text-neutral-900">
+                {METHOD_LABEL[payment.method as keyof typeof METHOD_LABEL] ?? payment.method}
+                {payment.bank_name ? ` · ${payment.bank_name}` : ""}
+              </span>
+              {payment.reference && (
+                <span className="block text-xs text-neutral-600">Referencia: {payment.reference}</span>
+              )}
             </div>
           </div>
 
-          <div className="border-t border-slate-200 pt-3">
-            <span className="block text-xs font-bold uppercase text-slate-400">Por concepto de</span>
-            <p className="font-semibold text-slate-800 mt-0.5">
-              Abono / Pago aplicado a la Factura <strong>{invoice.code}</strong>
+          <div className="pt-2">
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Concepto
+            </span>
+            <p className="font-medium text-neutral-900 mt-0.5">
+              Pago aplicado a Factura <strong>{invoice.code}</strong>
               {reservation ? ` (Reserva ${reservation.code})` : ""}
-              {vehicle ? ` · Vehículo ${vehicle.make} ${vehicle.model} ${vehicle.year} (${vehicle.plate})` : ""}
+              {vehicle ? ` · ${vehicle.make} ${vehicle.model} ${vehicle.year} (${vehicle.plate})` : ""}
             </p>
-            {payment.note && <p className="mt-1 text-xs text-slate-600">Nota: {payment.note}</p>}
+            {payment.note && <p className="mt-1 text-xs text-neutral-600">Nota: {payment.note}</p>}
           </div>
         </section>
 
-        {/* Estado de Cuenta de la Factura tras este recibo */}
-        <section className="my-6 rounded-xl border border-slate-200 p-4">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-            Estado de Cuenta · Factura {invoice.code}
-          </p>
-          <div className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
-            <div>
-              <span className="text-slate-500 block">Total Factura</span>
-              <span className="text-sm font-bold text-slate-900">{m(totals.totalCents)}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">Balance Anterior</span>
-              <span className="text-sm font-semibold text-slate-700">{m(prevBalanceCents)}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">Este Pago</span>
-              <span className="text-sm font-bold text-emerald-700">{m(thisAmountCents)}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">Balance Restante</span>
-              <span className="text-sm font-extrabold text-[#0b2347]">{m(newBalanceCents)}</span>
-            </div>
+        {/* Balance de la Factura */}
+        <section className="my-6 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+          <div>
+            <span className="text-neutral-500 block">Total Factura</span>
+            <span className="text-sm font-semibold text-neutral-900">{m(totals.totalCents)}</span>
+          </div>
+          <div>
+            <span className="text-neutral-500 block">Balance Anterior</span>
+            <span className="text-sm font-semibold text-neutral-900">{m(prevBalanceCents)}</span>
+          </div>
+          <div>
+            <span className="text-neutral-500 block">Este Pago</span>
+            <span className="text-sm font-bold text-neutral-900">{m(thisAmountCents)}</span>
+          </div>
+          <div>
+            <span className="text-neutral-500 block">Balance Restante</span>
+            <span className="text-sm font-bold text-neutral-900">{m(newBalanceCents)}</span>
           </div>
         </section>
 
         {/* Firmas */}
-        <footer className="mt-12 grid grid-cols-2 gap-12 border-t border-slate-200 pt-8 text-center text-xs text-slate-500">
+        <footer className="mt-14 grid grid-cols-2 gap-12 pt-8 text-center text-xs text-neutral-500">
           <div>
-            <div className="mx-auto mb-2 w-44 border-b border-slate-400 pt-8" />
-            <p className="font-semibold text-slate-700">Cajero / Administración · {company.name || "Hally Rent a Car"}</p>
+            <div className="mx-auto mb-2 w-44 border-b border-neutral-400" />
+            <p className="font-medium text-neutral-700">{company.name || "Hally Rent a Car"}</p>
           </div>
           <div>
-            <div className="mx-auto mb-2 w-44 border-b border-slate-400 pt-8" />
-            <p className="font-semibold text-slate-700">Firma del Cliente · {customerName}</p>
+            <div className="mx-auto mb-2 w-44 border-b border-neutral-400" />
+            <p className="font-medium text-neutral-700">{customerName}</p>
           </div>
         </footer>
       </article>
