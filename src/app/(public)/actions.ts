@@ -32,6 +32,22 @@ export async function submitRequestAction(fd: FormData) {
     if (!company) throw new ValidationError(lang === "en" ? "Online requests are not available right now." : "Las solicitudes en línea no están disponibles por ahora.");
     code = await submitPublicRequest(company.id, parsed.data, lang);
   } catch (e) { redirect(`${back}&error=${encodeURIComponent(errorMessage(e))}`); }
-  const p = formValue(fd, "pickup_local") ?? "", r = formValue(fd, "return_local") ?? "", v = formValue(fd, "vehicle_id") ?? "";
-  redirect(`/reservar/gracias?code=${encodeURIComponent(code)}&vehicle=${encodeURIComponent(v)}&pickup=${encodeURIComponent(p)}&return=${encodeURIComponent(r)}`);
+  const p = formValue(fd, "pickup_local") ?? "",
+    r = formValue(fd, "return_local") ?? "",
+    v = formValue(fd, "vehicle_id") ?? "",
+    n = formValue(fd, "name") ?? "",
+    ph = formValue(fd, "phone") ?? "",
+    pl = formValue(fd, "pickup_location") ?? "",
+    rl = formValue(fd, "return_location") ?? "";
+  const qs = new URLSearchParams({
+    code,
+    vehicle: v,
+    pickup: p,
+    return: r,
+    ...(n ? { name: n } : {}),
+    ...(ph ? { phone: ph } : {}),
+    ...(pl ? { pickup_location: pl } : {}),
+    ...(rl ? { return_location: rl } : {}),
+  });
+  redirect(`/reservar/gracias?${qs.toString()}`);
 }

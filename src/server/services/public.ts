@@ -74,6 +74,65 @@ const ERRORS: Record<Lang, Record<string, string>> = {
 
 export interface PublicRequestInput { vehicle_id: string; pickup_local: string; return_local: string; name: string; phone: string; email?: string; pickup_location?: string; return_location?: string; message?: string }
 
+async function sendServerWhatsAppAlert(companyId: string, code: string, i: PublicRequestInput) {
+  try {
+    const callmebotKey = process.env.CALLMEBOT_APIKEY;
+    const webhookUrl = process.env.WHATSAPP_NOTIFY_WEBHOOK_URL;
+    if (!callmebotKey && !webhookUrl) return;
+
+    const sb = createAdminClient();
+    const [{ data: company }, { data: vehicle }] = await Promise.all([
+      sb.from("companies").select("name,whatsapp_number,phone").eq("id", companyId).maybeSingle(),
+      sb.from("vehicles").select("make,model,year,plate").eq("id", i.vehicle_id).maybeSingle(),
+    ]);
+
+    const vehicleLabel = vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.year}` : i.vehicle_id;
+    const pickupClean = i.pickup_local.replace("T", " ");
+    const returnClean = i.return_local.replace("T", " ");
+
+    const msg = [
+      `🚗 *NUEVA RESERVA WEB (${code})*`,
+      `👤 Cliente: ${i.name}`,
+      `📞 Tel: ${i.phone}`,
+      `🚘 Vehículo: ${vehicleLabel}`,
+      `📅 Recogida: ${pickupClean}${i.pickup_location ? ` (${i.pickup_location})` : ""}`,
+      `🏁 Devolución: ${returnClean}${i.return_location ? ` (${i.return_location})` : ""}`,
+      i.message ? `💬 Nota: ${i.message}` : "",
+    ].filter(Boolean).join("\n");
+
+    const rawPhone = (process.env.CALLMEBOT_PHONE || company?.whatsapp_number || company?.phone || "").replace(/\D/g, "");
+    const targetPhone = rawPhone.length === 10 ? `1${rawPhone}` : rawPhone;
+
+    if (callmebotKey && targetPhone) {
+      const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(targetPhone)}&text=${encodeURIComponent(msg)}&apikey=${encodeURIComponent(callmebotKey)}`;
+      await fetch(url, { method: "GET", cache: "no-store" });
+    }
+
+    if (webhookUrl) {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "public_reservation_created",
+          code,
+          customer_name: i.name,
+          customer_phone: i.phone,
+          customer_email: i.email ?? null,
+          vehicle: vehicleLabel,
+          pickup_local: pickupClean,
+          return_local: returnClean,
+          pickup_location: i.pickup_location ?? null,
+          return_location: i.return_location ?? null,
+          message: i.message ?? null,
+          text: msg,
+        }),
+      });
+    }
+  } catch (err) {
+    console.error("[whatsapp-notify] Error enviando alerta automática:", err);
+  }
+}
+
 export async function submitPublicRequest(companyId: string, i: PublicRequestInput, lang: Lang = "es"): Promise<string> {
   const h = await headers();
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
@@ -89,7 +148,9 @@ export async function submitPublicRequest(companyId: string, i: PublicRequestInp
     console.error("public request error:", error);
     throw new Error("No se pudo enviar la solicitud");
   }
-  return data as string;
+  const code = data as string;
+  await sendServerWhatsAppAlert(companyId, code, i);
+  return code;
 }
 
 export async function getPublicVehicle(companyId: string, id: string): Promise<PublicVehicle | null> {

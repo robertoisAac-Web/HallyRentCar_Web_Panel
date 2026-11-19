@@ -3,6 +3,7 @@ import { requireAuth } from "@/server/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { DesktopTitleBar, InstallDesktopButton } from "@/components/pwa/DesktopAppManager";
+import { RealtimeReservationNotifier } from "@/components/admin/RealtimeReservationNotifier";
 import { signOutAction } from "./actions";
 
 const NAV_PERMISSION: Record<string, string> = {
@@ -69,6 +70,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       <div className="flex min-w-0 flex-1 flex-col">
         <DesktopTitleBar companyName={companyName} />
+        <RealtimeReservationNotifier />
         <main className="min-w-0 flex-1 p-6 md:p-8 lg:p-10">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>

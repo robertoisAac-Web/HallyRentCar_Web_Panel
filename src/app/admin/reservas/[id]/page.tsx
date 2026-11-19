@@ -47,9 +47,9 @@ export default async function ReservationPage({ params, searchParams }: {
         {r.internal_notes && <div className="col-span-2"><dt className="text-slate-500">Notas internas</dt><dd className="whitespace-pre-wrap">{r.internal_notes}</dd></div>}
         {r.customer_message && <div className="col-span-2"><dt className="text-slate-500">Mensaje del cliente</dt><dd className="whitespace-pre-wrap">{r.customer_message}</dd></div>}
       </dl>
-      {(actions.length > 0) && (
-        <section className="panel">
-          <h2 className="mb-3 font-medium">Acciones</h2>
+      {(actions.length > 0 || waConfirm || waReturn) && (
+        <section className="panel space-y-3">
+          <h2 className="font-medium">Acciones y Notificaciones por WhatsApp</h2>
           <div className="flex flex-wrap gap-3">
             {actions.map((to) => destructive(to) ? (
               <details key={to}><summary className="btn btn-secondary">{TRANSITION_LABEL[to]}…</summary>
@@ -58,6 +58,16 @@ export default async function ReservationPage({ params, searchParams }: {
             ) : (
               <form key={to} action={transitionAction.bind(null, id, to)}>
                 <button className="btn btn-primary">{TRANSITION_LABEL[to]}</button></form>))}
+            {waConfirm && (
+              <a href={waConfirm} target="_blank" rel="noreferrer" className="btn bg-[#16a34a] text-white hover:bg-[#15803d]">
+                📲 Enviar confirmación por WhatsApp
+              </a>
+            )}
+            {waReturn && (
+              <a href={waReturn} target="_blank" rel="noreferrer" className="btn btn-secondary">
+                📲 Recordatorio de devolución (WhatsApp)
+              </a>
+            )}
           </div>
         </section>)}
       <ChecklistSection reservationId={id} status={r.status} canWrite={ctx.permissions.has("checklists:write")} />
