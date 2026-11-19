@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 md:block">
           <div>
             <Link href="/admin/dashboard" className="block hover:opacity-90 transition-opacity">
-              <img src="/logo-dark.png" alt={companyName} className="h-11 w-auto" />
+              <img src="/logo-public-dark.png" alt={companyName} className="h-11 w-auto" />
             </Link>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="inline-block w-2 h-2 rounded-full bg-[#229ed9] shadow-[0_0_6px_#229ed9]"></span>

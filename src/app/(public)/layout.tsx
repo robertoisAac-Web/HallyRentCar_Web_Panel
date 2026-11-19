@@ -25,51 +25,90 @@ export default async function PublicLayout({ children }: { children: React.React
   const wa = whatsappLink(company?.whatsapp_number, t(lang, "wa.hello"));
 
   return (
-    <div className="public-root flex min-h-screen flex-col" data-theme={theme}>
-      <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-surface/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-2.5">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+    <div className="public-root flex min-h-screen flex-col selection:bg-[#229ed9]/15 selection:text-[#0b2347]" data-theme={theme}>
+      <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-surface)]/85 backdrop-blur-xl transition-colors duration-200">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
+          <Link href="/" className="flex items-center gap-2 transition-opacity duration-200 hover:opacity-80">
             <img
               src="/logo-public-dark.png"
               alt={company?.name ?? "Hally Rent a Car"}
-              className="h-10 md:h-12 w-auto public-logo-dark"
+              className="h-9 sm:h-11 w-auto public-logo-dark"
             />
             <img
               src="/logo-public-light.png"
               alt={company?.name ?? "Hally Rent a Car"}
-              className="h-10 md:h-12 w-auto public-logo-light"
+              className="h-9 sm:h-11 w-auto public-logo-light"
             />
           </Link>
-          <nav className="flex items-center gap-2 text-sm sm:gap-4">
-            <Link href="/vehiculos" className="hover:underline font-medium">{t(lang, "nav.vehicles")}</Link>
-            <Link href="/condiciones" className="hidden hover:underline sm:inline font-medium">{t(lang, "nav.terms")}</Link>
-            <LangToggle current={lang} label={t(lang, "a11y.lang")} />
-            <ThemeToggle label={t(lang, "a11y.theme")} />
-            {wa && <a href={wa} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm hidden sm:inline-flex">WhatsApp</a>}
+
+          <nav className="flex items-center gap-2 text-sm sm:gap-5">
+            <Link
+              href="/vehiculos"
+              className="rounded-full px-3 py-1.5 font-medium text-[var(--color-muted)] transition-colors duration-200 hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-ink)]"
+            >
+              {t(lang, "nav.vehicles")}
+            </Link>
+            <Link
+              href="/condiciones"
+              className="hidden rounded-full px-3 py-1.5 font-medium text-[var(--color-muted)] transition-colors duration-200 hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-ink)] sm:inline-block"
+            >
+              {t(lang, "nav.terms")}
+            </Link>
+            <div className="flex items-center gap-2 pl-1">
+              <LangToggle current={lang} label={t(lang, "a11y.lang")} />
+              <ThemeToggle label={t(lang, "a11y.theme")} />
+              {wa && (
+                <a
+                  href={wa}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary btn-sm hidden rounded-full px-4 py-2 sm:inline-flex"
+                >
+                  <span>WhatsApp</span>
+                </a>
+              )}
+            </div>
           </nav>
         </div>
       </header>
 
       <main className="flex-1">{children}</main>
 
-      <footer className="bg-[#07162e] text-white border-t border-white/10">
-        <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 text-sm md:grid-cols-3">
-          <div>
-            <img src="/logo-public-light.png" alt={company?.name ?? "Hally Rent a Car"} className="h-11 w-auto mb-3" />
-            <p className="text-white/70 text-xs leading-relaxed max-w-xs">{company?.tagline ?? "Alquiler de vehículos confiable y rápido en República Dominicana."}</p>
+      <footer className="border-t border-[var(--color-line)] bg-[var(--color-surface-subtle)] text-[var(--color-ink)]">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 text-sm sm:px-8 md:grid-cols-3">
+          <div className="space-y-3">
+            <img
+              src="/logo-public-dark.png"
+              alt={company?.name ?? "Hally Rent a Car"}
+              className="h-10 w-auto public-logo-dark"
+            />
+            <img
+              src="/logo-public-light.png"
+              alt={company?.name ?? "Hally Rent a Car"}
+              className="h-10 w-auto public-logo-light"
+            />
+            <p className="max-w-xs text-xs leading-relaxed text-[var(--color-muted)]">
+              {company?.tagline ?? "Alquiler de vehículos confiable, transparente y rápido en República Dominicana."}
+            </p>
           </div>
-          <div>
-            <p className="font-semibold text-white mb-2">{t(lang, "footer.contact")}</p>
-            <p className="text-white/70">{company?.phone ?? t(lang, "footer.phoneTbd")}</p>
-            <p className="mt-1 text-white/70">{company?.address ?? t(lang, "footer.addressTbd")}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]">
+              {t(lang, "footer.contact")}
+            </p>
+            <p className="text-[var(--color-muted)]">{company?.phone ?? t(lang, "footer.phoneTbd")}</p>
+            <p className="text-[var(--color-muted)] leading-relaxed">{company?.address ?? t(lang, "footer.addressTbd")}</p>
           </div>
-          <div>
-            <p className="font-semibold text-white mb-2">{t(lang, "footer.zones")}</p>
-            <p className="text-white/70 leading-relaxed">{company?.delivery_zones ?? t(lang, "footer.zonesTbd")}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]">
+              {t(lang, "footer.zones")}
+            </p>
+            <p className="text-[var(--color-muted)] leading-relaxed">
+              {company?.delivery_zones ?? t(lang, "footer.zonesTbd")}
+            </p>
           </div>
         </div>
-        <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
-          <span>HallyRentCar &copy; {new Date().getFullYear()} · Todos los derechos reservados.</span>
+        <div className="border-t border-[var(--color-line)] py-6 text-center text-xs text-[var(--color-muted)]">
+          <span>Hally Rent a Car &copy; {new Date().getFullYear()} · Todos los derechos reservados.</span>
         </div>
       </footer>
       <WhatsAppFab href={wa} label={t(lang, "a11y.waFab")} />
